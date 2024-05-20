@@ -89,7 +89,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
         print(nodes.head())
 
         f = open(f"base_network.txt", 'a')
-        f.write(f"c Modeller - Base Network Transaction\nc Date: {current_date}\nc Project: {project_name}\nc Scenario {scen_number}: {scen_name}\nt nodes\n")
+        f.write(f"c Helmet_utils\nc Date: {current_date}\nc Project: {project_name}\nc Scenario {scen_number}: {scen_name}\nt nodes\n")
         nodes.to_string(f, index=None)
         f.write("\nt links\n")
         links.to_string(f, index=None)
@@ -98,6 +98,49 @@ class EmmeNetwork(gpd.GeoDataFrame):
         
         return
     
-    def export_extra_links(self):
-        # TODO
+    def export_extra_links(self, scen_number=1, include_model_results=True):
+        model_has_run = "@car_work_vrk" in self.columns
+        helmet_5 = "@kaltevuus" in self.columns
+
+        # Allow user to remove model_results from extra_links
+        if model_has_run and not include_model_results:
+            if helmet_5:
+                to_be_printed = self[['From','To','@hinta_aht','@hinta_pt','@hinta_iht','@pyoratieluokka','@kaltevuus']].copy()
+                to_be_printed = to_be_printed.rename(columns={'From':'inode', 'To':'jnode'})
+            else:
+                to_be_printed = self[['From','To','@hinta_aht','@hinta_pt','@hinta_iht','@pyoratieluokka']].copy()
+                to_be_printed = to_be_printed.rename(columns={'From':'inode', 'To':'jnode'})
+        else:
+            # Select all columns starting with "@" plus "From" and "To"
+            to_be_printed = self[self.columns[self.columns.str.startswith('@') | self.columns.isin(['From', 'To'])]].copy()
+            to_be_printed = to_be_printed.rename(columns={'From': 'inode', 'To': 'jnode'})
+        
+        # Prepare export by creating the extra_attribute definitions read by EMME
+        definition_string = "t extra_attributes\n"
+        for column_name in to_be_printed.columns:
+            if column_name in ['inode', 'jnode']:
+                continue
+            elif column_name in ['@hinta_aht','@hinta_pt','@hinta_iht']:
+                definition_string = definition_string + f"{column_name} LINK 0.0 ''\n"
+            else:
+                # Defining the attribute hints
+                times_of_day = ['_aht','_vrk','_pt','_iht']
+                for time in times_of_day:
+                    if time in column_name:
+                        if any(sub in column_name for sub in ['aux_transit','cost','time']):
+                            column_name_stripped = column_name.replace(time, "")
+                            break
+                        else:
+                            column_name_stripped = column_name.replace(time, " volume")
+                            break
+                else:
+                    # If no changes, don't change anything
+                    column_name_stripped = column_name
+                definition_string = definition_string + f"{column_name} LINK 0.0 '{column_name_stripped.lstrip('@')}'\n"
+        definition_string = definition_string + "end extra_attributes\n"
+
+        f = open(f"extra_attributes_{scen_number}.txt", 'a')
+        f.write(definition_string)
+        to_be_printed.to_string(f, index=None)
+        f.close()
         return

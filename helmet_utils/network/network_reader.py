@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 from shapely.ops import Point, LineString
-from emme_network import EmmeNetwork
+from .emme_network import EmmeNetwork
 
 class NetworkReader():
     """

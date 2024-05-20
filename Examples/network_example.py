@@ -1,4 +1,4 @@
-from Scripts.network import network_reader
+from helmet_utils.network import network_reader
 
 # Create a NetworkReader object
 reader = network_reader.NetworkReader("Examples/Data/Scenario_1")

@@ -6,7 +6,7 @@ from emme_network import EmmeNetwork
 
 class NetworkReader():
     """
-    This is a class that processes exported Emme network folder
+    This is a class that processes an exported Emme network folder
 
     ...
 
@@ -116,6 +116,22 @@ class NetworkReader():
             # Read the rest of the file into a DataFrame
             df_extra_links = pd.read_csv(file, names=columns, delim_whitespace=True)
         return df_extra_links
+    
+    def extra_nodes_to_df(self):
+        with open(self.extra_nodes_file, 'r') as file:
+            # Skip lines until the end of the header
+            while True:
+                line = file.readline()
+                if line.startswith('end extra_attributes'):
+                    break
+            
+            # The next line contains the column names
+            columns = file.readline().strip().split()
+            
+            # Read the rest of the file into a DataFrame
+            df_extra_nodes = pd.read_csv(file, names=columns, delim_whitespace=True)
+        return df_extra_nodes
+
 
     def network(self):
         gdf_links = self.links_to_gdf()

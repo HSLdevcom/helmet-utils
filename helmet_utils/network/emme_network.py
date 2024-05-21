@@ -3,16 +3,16 @@ import geopandas as gpd
 import pandas as pd
 from datetime import datetime
 from shapely.ops import Point
+from tabulate import tabulate
 
 class EmmeNetwork(gpd.GeoDataFrame):
     """
     This is a class for working with an EMME network. Created in network_utils.py
     """
 
-
     # Initialize the EmmeNetwork with the same parameters as GeoDataFrame
     def __init__(self, gdf, *args, **kwargs):
-        super().__init__(gdf, *args, **kwargs)
+        super().__init__(gdf, crs='EPSG:3879' *args, **kwargs)
 
     # New method 'visualize'
     def visualize(self, visualization_type='default', column=None, cmap=None):
@@ -66,9 +66,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
         current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         links = self.copy()
         links['c'] = 'a'
-        links = links[['c', 'From', 'To', 'Length', 'Modes', 'Typ', 'Lan', 'VDF', 'Data1', 'Data2', 'Data3']]
-        print(links.head())
-        
+        links = links[['c', 'From', 'To', 'Length', 'Modes', 'Typ', 'Lan', 'VDF', 'Data1', 'Data2', 'Data3']]        
         nodes = self.nodes
 
         def float_to_string(value):
@@ -86,18 +84,15 @@ class EmmeNetwork(gpd.GeoDataFrame):
         
         # Reorder the columns
         nodes = nodes[['c', 'Node', 'X-coord', 'Y-coord', 'Data1', 'Data2', 'Data3', 'Label']]
-        print(nodes.head())
-
-        f = open(f"base_network.txt", 'a')
-        f.write(f"c Helmet_utils\nc Date: {current_date}\nc Project: {project_name}\nc Scenario {scen_number}: {scen_name}\nt nodes\n")
-        nodes.to_string(f, index=None)
+        f = open(f"base_network_{scen_number}.txt", 'a')
+        f.write(f"c Modeller - Base Network Transaction\nc Date: {current_date}\nc Project: {project_name}\nc Scenario {scen_number}: {scen_name}\nt nodes\n")
+        self._to_fwf(nodes, f)
         f.write("\nt links\n")
-        links.to_string(f, index=None)
+        self._to_fwf(links, f)
         f.close()
 
-        
         return
-    
+
     def export_extra_links(self, scen_number=1, include_model_results=True):
         model_has_run = "@car_work_vrk" in self.columns
         helmet_5 = "@kaltevuus" in self.columns
@@ -139,8 +134,13 @@ class EmmeNetwork(gpd.GeoDataFrame):
                 definition_string = definition_string + f"{column_name} LINK 0.0 '{column_name_stripped.lstrip('@')}'\n"
         definition_string = definition_string + "end extra_attributes\n"
 
-        f = open(f"extra_attributes_{scen_number}.txt", 'a')
+        f = open(f"extra_links_{scen_number}.txt", 'a')
         f.write(definition_string)
         to_be_printed.to_string(f, index=None)
         f.close()
         return
+    
+    def _to_fwf(self, df, file):
+        content = tabulate(df.values.tolist(), list(df.columns), tablefmt="plain", disable_numparse=True)
+        file.write(content)
+

@@ -9,7 +9,8 @@ setup(
         'numpy',
         'pandas',
         'geopandas',
-        'shapely'
+        'shapely',
+        'tabulate'
     ],
     extras_require={
         'landuse': [

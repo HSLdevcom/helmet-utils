@@ -81,7 +81,9 @@ class EmmeNetwork(gpd.GeoDataFrame):
         # Drop 'geometry' column and create 'c' column based on 'is_centroid'
         nodes = nodes.drop(columns=['geometry'])
         nodes['c'] = nodes['is_centroid'].map({1: 'a*', 0: 'a'})
-        
+        nodes = nodes.sort_values(by='Node', ascending=True)
+        links = links.sort_values(by='From', ascending=True)
+
         # Reorder the columns
         nodes = nodes[['c', 'Node', 'X-coord', 'Y-coord', 'Data1', 'Data2', 'Data3', 'Label']]
         f = open(f"base_network_{scen_number}.txt", 'a')
@@ -110,6 +112,8 @@ class EmmeNetwork(gpd.GeoDataFrame):
             to_be_printed = self[self.columns[self.columns.str.startswith('@') | self.columns.isin(['From', 'To'])]].copy()
             to_be_printed = to_be_printed.rename(columns={'From': 'inode', 'To': 'jnode'})
         
+        to_be_printed = to_be_printed.sort_values(by='inode', ascending=True)
+
         # Prepare export by creating the extra_attribute definitions read by EMME
         definition_string = "t extra_attributes\n"
         for column_name in to_be_printed.columns:

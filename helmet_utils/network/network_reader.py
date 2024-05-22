@@ -26,6 +26,10 @@ class NetworkReader():
         self.network_dir = Path(network_directory)
         self.base_network_file = next(self.network_dir.glob('*base_network*.txt'), None)
         self.extra_links_file = next(self.network_dir.glob('*extra_links*.txt'), None)
+        # TODO: Process the rest of the files
+        # self.extra_segments_file = next(self.network_dir.glob('*extra_segments*.txt'), None)
+        # self.transit_lines_file = next(self.network_dir.glob('*transit_lines*.txt'), None)
+        # self.extra_transit_lines_file = next(self.network_dir.glob('*extra_transit_lins*.txt'), None)
 
         # Process the files if they exist
         if self.base_network_file and self.extra_links_file:

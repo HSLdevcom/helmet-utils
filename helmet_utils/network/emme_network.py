@@ -12,7 +12,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
 
     # Initialize the EmmeNetwork with the same parameters as GeoDataFrame
     def __init__(self, gdf, *args, **kwargs):
-        super().__init__(gdf, crs='EPSG:3879' *args, **kwargs)
+        super().__init__(gdf, *args, **kwargs)
 
     # New method 'visualize'
     def visualize(self, visualization_type='default', column=None, cmap=None):

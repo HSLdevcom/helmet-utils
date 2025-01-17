@@ -313,7 +313,7 @@ preds = gdf_2040[['prediction', 'SIJ2019']].set_index('SIJ2019').sort_index()
 preds.index = preds.index.astype(int)
 preds.to_csv('ennuste.tsv', sep='\t')
 
-map = gdf_2040.explore(column='muutos',)
+map = gdf_2040.explore(column='muutos')
 
 map.save('map.html')
 webbrowser.open('map.html')

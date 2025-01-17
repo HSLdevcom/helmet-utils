@@ -1,10 +1,10 @@
-from helmet_utils.network import network_reader
+from helmet_utils.network import scenario_reader
 
-# Create a NetworkReader object
-reader = network_reader.NetworkReader("Examples/Data/Scenario_1")
+# Create a ScenarioReader object
+reader = scenario_reader.ScenarioReader("Examples/Data/Scenario_1")
 
 # Output network object
-network = reader.network()
+network = reader.scenario().network
 
 # Work with network
 # return all centroids

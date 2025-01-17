@@ -303,18 +303,18 @@ class ScenarioReader:
         df_headways = self.extra_transit_lines_to_df()
 
 
-        # Identifiers for the start of each table
+        # Identifiers for the start of each transit line
         transit_line_header = "a'"
         transit_line_route = "path="
         transit_line_end = "c '"
 
-        # Dictionary to hold the lines for each table
+        # Dictionary to hold the lines for each transit line
         transit_lines = []
         transit_line_routes = {}
         transit_line_stops = {}
         transit_lines_data = []
 
-        # Flags to identify which table we're currently reading
+        # Flags to identify which part we're currently reading
         reading_transit_routes = False
 
         # Temporary variables to hold data

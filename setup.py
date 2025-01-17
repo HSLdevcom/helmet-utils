@@ -7,12 +7,14 @@ setup(
     author='Santeri Hiitola | HSL',
     license='EUPL',
     packages=find_packages(),
+    package_data={
+        'helmet_utils': ['data/elevation_fixes.csv'],
+    },
     install_requires=[
-        'numpy',
-        'pandas',
         'geopandas',
-        'shapely',
-        'tabulate'
+        'tabulate',
+        'httpx',
+        'rasterio'
     ],
     extras_require={
         'landuse': [

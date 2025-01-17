@@ -1,4 +1,3 @@
-import time
 import webbrowser
 import geopandas as gpd
 import pandas as pd
@@ -8,6 +7,7 @@ from datetime import datetime
 from shapely.ops import Point
 from tabulate import tabulate
 from .height_data import HeightData
+from pathlib import Path
 
 class EmmeNetwork(gpd.GeoDataFrame):
     """
@@ -101,10 +101,12 @@ class EmmeNetwork(gpd.GeoDataFrame):
     def centroids(self):
         return self.nodes[self.nodes['is_centroid']==1]
     
-    def add_gradients(self, api_key, processors, full=True, in_place=False):
+    def add_gradients(self, api_key, processors, elevation_fixes=None, full=True, in_place=False):
+        if elevation_fixes is None:
+            elevation_fixes = Path(__file__).resolve().parent.parent / 'data' / 'elevation_fixes.csv'
         height_data_writer = HeightData(api_key=api_key, network=self, in_place=in_place)
         height_data_writer.add_height_data_parallel(processors=processors)
-        updated_network = height_data_writer.gradient(elevation_fixes="elevation_fixes.csv")
+        updated_network = height_data_writer.gradient(elevation_fixes=elevation_fixes)
         if in_place:
             self.update(updated_network)
         else:

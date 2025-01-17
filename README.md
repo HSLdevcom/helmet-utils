@@ -2,6 +2,8 @@
 
 Repository for the processing and adjusting of data used by Helmet. Can be used as a Python library, or throught the command line.
 
+Can be used to add height data to an Emme/Helmet network, which requires a Maanmittauslaitos API key from: https://www.maanmittauslaitos.fi/rajapinnat/api-avaimen-ohje
+
 ## Installation
 
 You can install the package directly from the GitHub repository using pip:
@@ -64,7 +66,7 @@ python -m helmet_utils.cli network add-height path/to/scenario_folder --api-key 
 ### Command Line Arguments
 
 - `scenario_folder`: Path to the exported EMME scenario/network folder.
-- `--api-key`: Maanmittauslaitos API key for reading height data (https://www.maanmittauslaitos.fi/rajapinnat/api-avaimen-ohje).
+- `--api-key`: Maanmittauslaitos API key for reading height data.
 - `--processors`: Number of processors to use (default is 2).
 - `--output-folder`: Folder to save the updated network (optional).
 

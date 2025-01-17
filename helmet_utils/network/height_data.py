@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import os
 import httpx
 import rasterio
 import tempfile
 import webbrowser
 import time
+import multiprocessing
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -12,8 +16,6 @@ from shapely.geometry import Point, LineString, MultiPolygon
 from shapely.ops import split
 from rtree import index
 from concurrent.futures import ProcessPoolExecutor, as_completed
-
-from __future__ import annotations
 
 
 pd.options.display.float_format = '{:.6f}'.format
@@ -43,6 +45,11 @@ class HeightData:
         return processed_squares
 
     def add_height_data_parallel(self, processors=2):
+        available_processors = multiprocessing.cpu_count()
+        if processors > available_processors:
+            print(f"Warning: Specified number of processors ({processors}) exceeds available CPU cores ({available_processors}). Using {available_processors} processors instead.")
+            processors = available_processors
+
         print("Writing height data requires you to nest your code inside ")
         print("a main function and protect the main module with")
         print("\tif __name__ == '__main__':")
@@ -54,49 +61,29 @@ class HeightData:
         not_centroids = self.network.nodes[self.network.nodes['is_centroid'] == 0].copy()
         self._prepare_area(not_centroids)
         num_squares = len(self.gdf_squares.explode(index_parts=False).index)
-        half = num_squares // 2
-        quarter = half // 2
-
-        first_half = self.gdf_squares.explode(index_part=False).iloc[:half]
-        second_half = self.gdf_squares.explode(index_part=False).iloc[half:]
-
-        first_quarter = self.gdf_squares.explode(index_parts=False).iloc[:quarter]
-        second_quarter = self.gdf_squares.explode(index_parts=False).iloc[quarter:half]
-        third_quarter = self.gdf_squares.explode(index_parts=False).iloc[half:half+quarter]
-        fourth_quarter = self.gdf_squares.explode(index_parts=False).iloc[half+quarter:]
-
+        
+        # Split the squares based on the number of processors
+        squares_split = np.array_split(self.gdf_squares.explode(index_parts=False), processors)
         
         print(f"Number of raster squares: {num_squares}")
         print(f"Reading elevation data and appending to network using {processors} processors...")
         print()
-
+        parts_done = 0
         updated_points = {}
-        quarters_done = 0
         with ProcessPoolExecutor(max_workers=processors) as executor:
-            if processors == 2:
-                future_first_half = executor.submit(self.process_half_squares, first_half, self.api_key, not_centroids)
-                future_second_half = executor.submit(self.process_half_squares, second_half, self.api_key, not_centroids)
-                process_pool = [future_first_half, future_second_half]
-            else:
-                future_first_quarter = executor.submit(self.process_half_squares, first_quarter, self.api_key, not_centroids)
-                future_second_quarter = executor.submit(self.process_half_squares, second_quarter, self.api_key, not_centroids)
-                future_third_quarter = executor.submit(self.process_half_squares, third_quarter, self.api_key, not_centroids)
-                future_fourth_quarter = executor.submit(self.process_half_squares, fourth_quarter, self.api_key, not_centroids)
-                process_pool = [future_first_quarter, future_second_quarter, future_third_quarter, future_fourth_quarter]
-
+            futures = [executor.submit(self.process_half_squares, squares, self.api_key, not_centroids) for squares in squares_split]
+            
             print('Processing...', end='\r')
-            quarters_done = 0
-            updated_points = {}
-            for i, future in enumerate(as_completed(process_pool)):
+            for i, future in enumerate(as_completed(futures)):
                 try:
                     points_with_elevations = future.result()
                 except Exception as e:
                     print(f"Error processing future {i}: {e}")
                     continue
 
-                if i + 1 > quarters_done:
+                if i + 1 > parts_done:
                     print(f'Processing... {int((i + 1) * (100 / processors))}% done.', end='\r')
-                    quarters_done += 1
+                    parts_done += 1
                     for points in points_with_elevations:
                         updated_points.update(points[1])
 
@@ -289,7 +276,9 @@ class HeightData:
 
         return df_el
 
-    def gradient(self, elevation_fixes='elevation_fixes.csv', output=None):
+    def gradient(self, elevation_fixes=None, output=None):
+        if elevation_fixes is None:
+            elevation_fixes = Path(__file__).resolve().parent.parent / 'data' / 'elevation_fixes.csv'
         print("Writing gradients to network...")
         centroids = self.network.nodes[self.network.nodes["is_centroid"] == 1]
 
@@ -325,12 +314,12 @@ class HeightData:
             extra_links_with_gradient.to_string(f, index=None)#, formatters=fmts)
             f.close()
 
-            #Paikallinen visualisointi Foliumilla
-            gdf_over_0 = gdf.loc[gdf['@kaltevuus']>0]
-            map = gdf_over_0.explore(column='@kaltevuus', style_kwds={'weight':3})
+            # #Paikallinen visualisointi Foliumilla
+            # gdf_over_0 = gdf.loc[gdf['@kaltevuus']>0]
+            # map = gdf_over_0.explore(column='@kaltevuus', style_kwds={'weight':3})
 
-            map.save('map.html')
-            webbrowser.open('map.html')
+            # map.save('map.html')
+            # webbrowser.open('map.html')
         else:
             return self.network
 
@@ -344,6 +333,6 @@ class HeightData:
 #     elapsed_height_data_min = (elapsed_height_data_s)//60
 #     elapsed_height_data = f"{elapsed_height_data_min} min {elapsed_height_data_s-elapsed_height_data_min*60} s."
 #     print(f"Time elapsed reading height data: {elapsed_height_data}.")
-
+# 
 #     height_data_writer.gradient("extra_links_gradients_200.txt", "elevation_fixes.csv")
 

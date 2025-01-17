@@ -1,6 +1,7 @@
 from .emme_network import EmmeNetwork
 from .transit_network import TransitNetwork
 import os
+from pathlib import Path
 
 class EmmeScenario:
     def __init__(self, network: EmmeNetwork, transit: TransitNetwork, input_folder: str, project_name: str, scenario_name: str):
@@ -10,8 +11,10 @@ class EmmeScenario:
         self.project_name = project_name
         self.scenario_name = scenario_name
 
-    def add_gradients(self, api_key, processors, in_place=False):
-        self.network.add_gradients(api_key, processors, in_place)
+    def add_gradients(self, api_key, processors, elevation_fixes=None, in_place=False):
+        if elevation_fixes is None:
+            elevation_fixes = Path(__file__).resolve().parent.parent / 'data' / 'elevation_fixes.csv'
+        self.network.add_gradients(api_key, processors, in_place=in_place, elevation_fixes=elevation_fixes)
 
     def export(self, output_folder=None, project_name=None, scenario_name=None):
         if output_folder is None:

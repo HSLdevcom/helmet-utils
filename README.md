@@ -7,7 +7,7 @@ Repository for the processing and adjusting of data used by Helmet. Can be used 
 You can install the package directly from the GitHub repository using pip:
 
 ```sh
-pip install git+https://github.com/username/helmet-utils.git
+pip install git+https://github.com/HSLdevcom/helmet-utils.git
 ```
 
 ## Usage as a Python Library
@@ -78,7 +78,7 @@ python -m helmet_utils.cli --help
 
 We welcome feature requests and suggestions! Please submit your requests by opening an issue on our GitHub repository:
 
-[https://github.com/username/helmet-utils/issues](https://github.com/username/helmet-utils/issues)
+[https://github.com/HSLdevcom/helmet-utils/issues](https://github.com/HSLdevcom/helmet-utils/issues)
 
 Alternatively, you can contact us via email.
 

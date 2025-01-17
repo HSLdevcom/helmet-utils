@@ -96,9 +96,9 @@ class ScenarioReader:
             'Node': 'Int32',
             'X-coord': 'float64',
             'Y-coord': 'float64',
-            'Data1': 'int32',
-            'Data2': 'int32',
-            'Data3': 'int32',
+            'Data1': 'float64',
+            'Data2': 'float64',
+            'Data3': 'float64',
             'Label': 'str'
         })
         df_links = df_links.astype({
@@ -109,9 +109,9 @@ class ScenarioReader:
             'Typ': 'int32',
             'Lan': 'float64',
             'VDF': 'int32',
-            'Data1': 'int32',
-            'Data2': 'int32',
-            'Data3': 'int32'
+            'Data1': 'float64',
+            'Data2': 'float64',
+            'Data3': 'float64'
         })
 
         # Read extra nodes file if it exists

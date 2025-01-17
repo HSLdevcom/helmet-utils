@@ -87,8 +87,12 @@ class ScenarioReader:
             elif reading_links:
                 links_lines.append(line)
 
-        # Convert lists to DataFrames with explicit datatypes
-        df_nodes = pd.DataFrame([line.split() for line in nodes_lines[1:]], columns=nodes_lines[0].split(), dtype={
+        # Convert lists to DataFrames
+        df_nodes = pd.DataFrame([line.split() for line in nodes_lines[1:]], columns=nodes_lines[0].split())
+        df_links = pd.DataFrame([line.split() for line in links_lines[1:]], columns=links_lines[0].split())
+
+        # Explicitly set the data types for each column
+        df_nodes = df_nodes.astype({
             'Node': 'Int32',
             'X-coord': 'float64',
             'Y-coord': 'float64',
@@ -97,7 +101,7 @@ class ScenarioReader:
             'Data3': 'int32',
             'Label': 'str'
         })
-        df_links = pd.DataFrame([line.split() for line in links_lines[1:]], columns=links_lines[0].split(), dtype={
+        df_links = df_links.astype({
             'From': 'Int32',
             'To': 'Int32',
             'Length': 'float64',

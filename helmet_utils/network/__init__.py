@@ -1,1 +1,1 @@
-from .network_reader import NetworkReader
+from .scenario_reader import ScenarioReader

@@ -401,7 +401,7 @@ class ScenarioReader:
         for i, turn in enumerate(single_route):
             # Extract the node number and its data
             node_data = turn.split()
-            node_number = node_data[0]
+            node_number = int(node_data[0])
             dwt = node_data[1].split('=')[1]
             if stop_flag == True or i == 0:
                 route_stops.append(node_number)

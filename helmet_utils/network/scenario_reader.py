@@ -87,16 +87,32 @@ class ScenarioReader:
             elif reading_links:
                 links_lines.append(line)
 
-        # Convert lists to DataFrames
-        df_nodes = pd.DataFrame([line.split() for line in nodes_lines[1:]], columns=nodes_lines[0].split())
-        df_links = pd.DataFrame([line.split() for line in links_lines[1:]], columns=links_lines[0].split())
+        # Convert lists to DataFrames with explicit datatypes
+        df_nodes = pd.DataFrame([line.split() for line in nodes_lines[1:]], columns=nodes_lines[0].split(), dtype={
+            'Node': 'Int32',
+            'X-coord': 'float64',
+            'Y-coord': 'float64',
+            'Data1': 'int32',
+            'Data2': 'int32',
+            'Data3': 'int32',
+            'Label': 'str'
+        })
+        df_links = pd.DataFrame([line.split() for line in links_lines[1:]], columns=links_lines[0].split(), dtype={
+            'From': 'Int32',
+            'To': 'Int32',
+            'Length': 'float64',
+            'Modes': 'str',
+            'Typ': 'int32',
+            'Lan': 'float64',
+            'VDF': 'int32',
+            'Data1': 'int32',
+            'Data2': 'int32',
+            'Data3': 'int32'
+        })
 
         # Read extra nodes file if it exists
         if self.extra_nodes_file:
             df_extra_nodes, _ = self.extra_attributes_to_df(self.extra_nodes_file)
-            # Ensure 'Node' and 'inode' are of the same type before merging
-            df_nodes['Node'] = df_nodes['Node'].astype('Int64')
-            df_extra_nodes['inode'] = df_extra_nodes['inode'].astype('Int64')
             df_nodes = df_nodes.merge(df_extra_nodes, left_on='Node', right_on='inode', how='left').drop(columns=['inode'])
 
         df_nodes['geometry'] = df_nodes.apply(lambda row: Point(row['X-coord'], row['Y-coord']), axis=1)

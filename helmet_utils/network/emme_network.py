@@ -112,8 +112,9 @@ class EmmeNetwork(gpd.GeoDataFrame):
         else:
             return EmmeNetwork(updated_network)
     
-    def export_base_network(self, project_name='default_project', scen_number='1', scen_name='default_scenario'):
-        current_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    def export_base_network(self, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
+        
+        current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         links = self.copy()
         links['c'] = 'a'
         links = links[['c', 'From', 'To', 'Length', 'Modes', 'Typ', 'Lan', 'VDF', 'Data1', 'Data2', 'Data3']]

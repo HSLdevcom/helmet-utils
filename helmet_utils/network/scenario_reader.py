@@ -283,14 +283,13 @@ class ScenarioReader:
     
     def transit(self):
         try:
-            multi_transit, simple_transit, stops = self.parse_transit()
-            transit_network = TransitNetwork(multi_transit, simple_transit, stops)
+            segments, transit_lines, stops = self.parse_transit()
+            transit_network = TransitNetwork(segments, transit_lines, stops)
+            transit_network.project_name = self.project_name
+            transit_network.scenario_name = self.scenario_name
             if self.extra_segments_file:
-                """
-                TODO: Implement extra segments
-                extra_segments = self._extra_segments_to_gdf()
-                transit_network.extra_segments = extra_segments
-                """
+                # TODO: Implement extra segments
+                pass
         except:
             raise FileNotFoundError("Transit files not found.")
         return transit_network

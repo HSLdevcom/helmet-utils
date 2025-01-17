@@ -1,4 +1,5 @@
 import webbrowser
+from datetime import datetime
 
 class TransitNetwork():
 
@@ -95,9 +96,33 @@ class TransitNetwork():
         map.save('map.html')
         webbrowser.open('map.html')
 
-    def export_transit_lines():
-        pass
+    def export_transit_lines(self, scen_number=1, export_datetime=None):
+        current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        header = (
+            "c Modeller - Transit Line Transaction\n"
+            f"c Date: {current_date}\n"
+            f"c Project: {self.project_name}\n"
+            f"c Scenario {scen_number}: {self.scenario_name}\n"
+            "t lines\n"
+            "c Transit Lines\n"
+            "c Line  Mod Veh Headwy Speed Description             Data1  Data2  Data3\n"
+        )
 
+        with open(f"transit_lines_{scen_number}.txt", 'w') as f:
+            f.write(header)
+            for line in self.transit_lines.itertuples():
+                line_str = (
+                    f"a'{line.Line}' {line.Mod} {line.Veh} {line.Headwy:.2f} {line.Speed:.2f} "
+                    f"'{line.Description}' {line.Data1} {line.Data2} {line.Data3}\n"
+                    "  path=no\n"
+                )
+                f.write(line_str)
+                route_nodes = self.segments[self.segments['Line'] == line.Line]
+                for node in route_nodes.itertuples():
+                    f.write(
+                        f"   {node.Node}      dwt={node.dwt}   ttf={node.ttf}   us1={node.us1}   us2={node.us2}   us3={node.us3}\n"
+                    )
+                f.write("c '\n")
 
     def export(self, output_folder):
         self.export_transit_lines(output_folder)

@@ -94,6 +94,9 @@ class ScenarioReader:
         # Read extra nodes file if it exists
         if self.extra_nodes_file:
             df_extra_nodes, _ = self.extra_attributes_to_df(self.extra_nodes_file)
+            # Ensure 'Node' and 'inode' are of the same type before merging
+            df_nodes['Node'] = df_nodes['Node'].astype('Int64')
+            df_extra_nodes['inode'] = df_extra_nodes['inode'].astype('Int64')
             df_nodes = df_nodes.merge(df_extra_nodes, left_on='Node', right_on='inode', how='left').drop(columns=['inode'])
 
         df_nodes['geometry'] = df_nodes.apply(lambda row: Point(row['X-coord'], row['Y-coord']), axis=1)

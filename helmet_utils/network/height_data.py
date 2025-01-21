@@ -94,6 +94,7 @@ class HeightData:
     
     def _prepare_area(self, nodes: gpd.GeoDataFrame):
         print("Cutting model area into manageable squares...", end='\r')
+        nodes = nodes.to_crs("EPSG:3067")
         network_area = nodes.union_all().convex_hull
         geometry_cut = self.quadrat_cut_geometry(network_area.buffer(10), quadrat_width=9500) 
         self.gdf_squares = gpd.GeoDataFrame(geometry=pd.Series(geometry_cut), crs="EPSG:3067")

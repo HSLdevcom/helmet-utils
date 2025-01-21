@@ -12,7 +12,9 @@ class EmmeScenario:
         self.project_name = project_name
         self.scenario_name = scenario_name
 
-    def add_gradients(self, api_key, processors, elevation_fixes=None, in_place=False):
+    def add_gradients(self, api_key, processors=2, elevation_fixes=None, in_place=False):
+        if api_key is None:
+            raise ValueError("Please provide a valid Maanmittauslaitos API key")
         if elevation_fixes is None:
             elevation_fixes = Path(__file__).resolve().parent.parent / 'data' / 'elevation_fixes.csv'
         self.network.add_gradients(api_key, processors, in_place=in_place, elevation_fixes=elevation_fixes)

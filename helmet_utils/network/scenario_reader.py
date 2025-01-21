@@ -346,7 +346,7 @@ class ScenarioReader:
 
         # Process each line in the file
         for line in lines:
-            if transit_line_header in line:
+            if transit_line_header in line: # Get the line header for the current transit line
                 current_line_code = line.split("'")[1]
                 direction = current_line_code[-1]
                 parts = line.split()
@@ -354,24 +354,23 @@ class ScenarioReader:
                 description = ' '.join(parts[5:-3]).strip("'")
                 data1, data2, data3 = map(float, parts[-3:])
                 transit_lines.append([current_line_code, direction, mod, int(veh), float(headwy), float(speed), description, data1, data2, data3])
-            elif transit_line_route in line:
+            elif transit_line_route in line: # Start reading the route for the current transit line
                 reading_transit_routes = True
                 single_route = []  # Reset the route list for a new transit line
                 single_route_numbers = []
                 continue
-            elif transit_line_end in line and current_line_code:
-                # Process each line in the file to extract the necessary data
+            elif transit_line_end in line and current_line_code: # Save the route data for the transit line
                 route_stops, transit_lines_data = self.separate_route_links(single_route, transit_lines_data, current_line_code, direction)
-                transit_line_routes[current_line_code] = [self.node_dict[node_id] for node_id in single_route_numbers]
-                transit_line_stops[current_line_code] = [self.node_dict[node_id] for node_id in route_stops]
+                transit_line_routes[current_line_code] = [self.node_dict[int(node_id)] for node_id in single_route_numbers]
+                transit_line_stops[current_line_code] = [self.node_dict[int(node_id)] for node_id in route_stops]
                 reading_transit_routes = False
                 current_line_code = None  # Reset the line code for the next transit line
                 current_line_code_no_dir = None
                 direction = None
-
+            # If no other indicators are found, we're between header and end, or reading the route data
             if reading_transit_routes and line and not (line.startswith(transit_line_route) or line.startswith(transit_line_end)):
-                node_number = line.split()[0]
-                single_route_numbers.append(node_number)
+                node_id = int(line.split()[0])
+                single_route_numbers.append(node_id)
                 single_route.append(line)  # Add the route data, skipping the identifier line
             
         df_routes = pd.DataFrame(transit_lines_data, columns=['Line', 'Direction', 'Node', 'dwt', 'lay', 'ttf', 'us1', 'us2', 'us3', 'geometry'])
@@ -399,12 +398,12 @@ class ScenarioReader:
         stop_flag = False
         route_length = len(single_route)
         for i, turn in enumerate(single_route):
-            # Extract the node number and its data
+            # Extract the node id and its data
             node_data = turn.split()
-            node_number = int(node_data[0])
+            node_id = int(node_data[0])
             dwt = node_data[1].split('=')[1]
             if stop_flag == True or i == 0:
-                route_stops.append(node_number)
+                route_stops.append(node_id)
                 stop_flag = False
             if dwt == '+0.01':
                 stop_flag = True
@@ -416,18 +415,18 @@ class ScenarioReader:
                 lay = dwt
 
             # Get the Point for the current node
-            current_point = self.node_dict[node_number]
+            current_point = self.node_dict[node_id]
 
             # Check if there's a next node in the list
             if i < len(single_route) - 1:
-                next_node_number = int(single_route[i + 1].split()[0])
-                next_point = self.node_dict[next_node_number]
+                next_node_id = int(single_route[i + 1].split()[0])
+                next_point = self.node_dict[next_node_id]
                 geometry = LineString([current_point, next_point])
             else:
                 # If there's no next node, create a Point geometry
                 geometry = current_point
 
             # Append the extracted data to the transit_lines_data list
-            transit_lines_data.append([current_line_code, direction, node_number, dwt, lay, ttf, us1, us2, us3, geometry])
+            transit_lines_data.append([current_line_code, direction, node_id, dwt, lay, ttf, us1, us2, us3, geometry])
         
         return route_stops, transit_lines_data

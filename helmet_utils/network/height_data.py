@@ -61,32 +61,54 @@ class HeightData:
         not_centroids = self.network.nodes[self.network.nodes['is_centroid'] == 0].copy()
         self._prepare_area(not_centroids)
         num_squares = len(self.gdf_squares.explode(index_parts=False).index)
-        
+        half = num_squares // 2
+        quarter = half // 2
         # Split the squares based on the number of processors
         squares_split = np.array_split(self.gdf_squares.explode(index_parts=False), processors)
-        
+        first_half = self.gdf_squares.explode(index_part=False).iloc[:half]
+        second_half = self.gdf_squares.explode(index_part=False).iloc[half:]
+
+        first_quarter = self.gdf_squares.explode(index_parts=False).iloc[:quarter]
+        second_quarter = self.gdf_squares.explode(index_parts=False).iloc[quarter:half]
+        third_quarter = self.gdf_squares.explode(index_parts=False).iloc[half:half+quarter]
+        fourth_quarter = self.gdf_squares.explode(index_parts=False).iloc[half+quarter:]
+
+
         print(f"Number of raster squares: {num_squares}")
         print(f"Reading elevation data and appending to network using {processors} processors...")
         print()
-        parts_done = 0
+        quarters_done = 0
         updated_points = {}
         with ProcessPoolExecutor(max_workers=processors) as executor:
-            futures = [executor.submit(self.process_half_squares, squares, self.api_key, not_centroids) for squares in squares_split]
-            
+            # TODO: Add the ability to use any number of processors
+            # futures = [executor.submit(self.process_half_squares, squares, self.api_key, not_centroids) for squares in squares_split]
+            if processors == 2:
+                future_first_half = executor.submit(self.process_half_squares, first_half, self.api_key, not_centroids)
+                future_second_half = executor.submit(self.process_half_squares, second_half, self.api_key, not_centroids)
+                process_pool = [future_first_half, future_second_half]
+            else:
+                future_first_quarter = executor.submit(self.process_half_squares, first_quarter, self.api_key, not_centroids)
+                future_second_quarter = executor.submit(self.process_half_squares, second_quarter, self.api_key, not_centroids)
+                future_third_quarter = executor.submit(self.process_half_squares, third_quarter, self.api_key, not_centroids)
+                future_fourth_quarter = executor.submit(self.process_half_squares, fourth_quarter, self.api_key, not_centroids)
+                process_pool = [future_first_quarter, future_second_quarter, future_third_quarter, future_fourth_quarter]
+
             print('Processing...', end='\r')
-            for i, future in enumerate(as_completed(futures)):
+            quarters_done = 0
+            updated_points = {}
+            for i, future in enumerate(as_completed(process_pool)):
                 try:
                     points_with_elevations = future.result()
                 except Exception as e:
                     print(f"Error processing future {i}: {e}")
                     continue
 
-                if i + 1 > parts_done:
+                if i + 1 > quarters_done:
                     print(f'Processing... {int((i + 1) * (100 / processors))}% done.', end='\r')
-                    parts_done += 1
+                    quarters_done += 1
                     for points in points_with_elevations:
                         updated_points.update(points[1])
-
+        
         for i, point in updated_points.items():
             self.network.nodes.loc[i, 'geometry'] = point
         print("\nFinished processing height data!")
@@ -294,11 +316,11 @@ class HeightData:
 
         df_el = self.process_geometries(self.network, node_dict)
         gdf_el = gpd.GeoDataFrame(df_el, geometry="line_geometry", crs="EPSG:3067")
+        gdf_el['elevation_i'] = gdf.apply(lambda row: row['geometry_i'].coords[0][2], axis=1)
+        gdf_el['elevation_j'] = gdf.apply(lambda row: row['geometry_j'].coords[1][2] if row['To']>0 else 0.0, axis=1)
         gdf = gdf_el.drop(columns=["geometry_i", "geometry_j"])
-        gdf['elevation_i'] = gdf.apply(lambda row: row['line_geometry'].coords[0][2], axis=1)
-        gdf['elevation_j'] = gdf.apply(lambda row: row['line_geometry'].coords[1][2], axis=1)
         gdf['elevation_difference'] = gdf.apply(lambda row: row['line_geometry'].coords[1][2] - row['line_geometry'].coords[0][2], axis=1)
-        gdf['@kaltevuus'] = gdf.apply(lambda row: ((row['line_geometry'].coords[0][2] - row['line_geometry'].coords[1][2]) / row['line_geometry'].length) * 100, axis=1)
+        gdf['@kaltevuus'] = gdf.apply(lambda row: ((row['line_geometry'].coords[0][2] - row['line_geometry'].coords[1][2]) / row['line_geometry'].length) * 100 if row['To']>0 else 0.0, axis=1)
         gdf.loc[gdf['From'].isin(centroids['Node']) | gdf['To'].isin(centroids['Node']), '@kaltevuus'] = 0.0
 
         self.network['@kaltevuus'] = gdf.set_index(['From', 'To'])['@kaltevuus']

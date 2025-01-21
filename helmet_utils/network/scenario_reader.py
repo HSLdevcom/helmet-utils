@@ -420,7 +420,7 @@ class ScenarioReader:
 
             # Check if there's a next node in the list
             if i < len(single_route) - 1:
-                next_node_number = single_route[i + 1].split()[0]
+                next_node_number = int(single_route[i + 1].split()[0])
                 next_point = self.node_dict[next_node_number]
                 geometry = LineString([current_point, next_point])
             else:

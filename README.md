@@ -1,6 +1,6 @@
 # helmet-utils
 
-Repository for the processing and adjusting of data used by Helmet. Can be used as a Python library, or throught the command line.
+Repository for the processing and adjusting of data used by Helmet. Can be used as a Python library, or through the command line.
 
 Can be used to add height data to an Emme/Helmet network, which requires a Maanmittauslaitos API key from: https://www.maanmittauslaitos.fi/rajapinnat/api-avaimen-ohje
 

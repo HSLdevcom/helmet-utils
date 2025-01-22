@@ -1,5 +1,6 @@
 import webbrowser
 from datetime import datetime
+from pathlib import Path
 
 class TransitNetwork():
 
@@ -41,28 +42,6 @@ class TransitNetwork():
                 transit_lines_with_new_headway.loc[self.transit_lines['Line']==line, "@hw_iht"] = iht
             return transit_lines_with_new_headway
 
-    
-    def export_extra_transit_lines(self, scen_number=1):
-        to_be_printed = self.transit_lines[['Line', '@hw_aht', '@hw_pt', '@hw_iht']].copy()
-        # Reformat line numbers to match emme format
-        to_be_printed = to_be_printed.rename(columns={'Line':'line'})
-        to_be_printed['line'] = to_be_printed['line'].apply(lambda num: f"'{str(num).ljust(6)}'")
-
-        # Prepare export by creating the extra_attribute definitions read by EMME
-        definition_string = "t extra_attributes\n@hw_aht TRANSIT_LINE 0.0 ''\n"\
-                            +"@hw_pt TRANSIT_LINE 0.0 ''\n@hw_iht TRANSIT_LINE 0.0 ''\n"\
-                            +"end extra_attributes\n"
-
-        with open(f"extra_transit_lines_{scen_number}.txt", 'a') as f:
-            f.write(definition_string)
-            # Use to_string with formatters to ensure proper spacing and alignment
-            f.write(to_be_printed.to_string(index=False, header=True, formatters={
-            'line': '{:<8}'.format,
-            '@hw_aht': '{:>9}'.format,
-            '@hw_pt': '{:>9}'.format,
-            '@hw_iht': '{:>9}'.format}))
-            return
-
     def visualize(self, visualization_type=None, direction=None, draw_stops=True):
         if not visualization_type:
             print("Visualization type must be specified with transit network.\n Valid choices: ['all','hsl','hsl-bus','bus','tram'], 'all' is not recommended due to issues with Folium.\n\n You can also manually visualize transit lines using the transit_lines.explore() and stops.explore() methods. ")
@@ -96,7 +75,8 @@ class TransitNetwork():
         map.save('map.html')
         webbrowser.open('map.html')
 
-    def export_transit_lines(self, scen_number=1, export_datetime=None):
+    # Export functions
+    def export_transit_lines(self, output_folder, scen_number=1, export_datetime=None):
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         header = (
             "c Modeller - Transit Line Transaction\n"
@@ -108,21 +88,45 @@ class TransitNetwork():
             "c Line  Mod Veh Headwy Speed Description             Data1  Data2  Data3\n"
         )
 
-        with open(f"transit_lines_{scen_number}.txt", 'w') as f:
+        output_path = Path(output_folder) / f"transit_lines_{scen_number}.txt"
+        with open(output_path, 'w') as f:
             f.write(header)
             for line in self.transit_lines.itertuples():
-                line_str = (
-                    f"a'{line.Line}' {line.Mod} {line.Veh} {line.Headwy:.2f} {line.Speed:.2f} "
-                    f"'{line.Description}' {line.Data1} {line.Data2} {line.Data3}\n"
+                start_str = (
+                    f"a'{line.Line}' {line.Mod}   {line.Veh}  {line.Headwy:.2f}  {line.Speed:.2f} "
+                    f"'{line.Description}'      {line.Data1}      {line.Data2}      {line.Data3}\n"
                     "  path=no\n"
                 )
-                f.write(line_str)
-                route_nodes = self.segments[self.segments['Line'] == line.Line]
-                for node in route_nodes.itertuples():
-                    f.write(
-                        f"   {node.Node}      dwt={node.dwt}   ttf={node.ttf}   us1={node.us1}   us2={node.us2}   us3={node.us3}\n"
-                    )
-                f.write("c '\n")
+                f.write(start_str)
+                route_nodes = self.segments.loc[line.Line]
+                for i, node in enumerate(route_nodes.itertuples()):
+                    if i == len(route_nodes) - 1:
+                        f.write(f"   {node.From}        lay={node.lay}\n")
+                    else:
+                        f.write(f"   {node.From}      dwt={node.dwt}   ttf={node.ttf}   us1={node.us1}   us2={node.us2}   us3={node.us3}\n")
+                end_str = f"c '{line.Line}' first:      dwt={line.first_dwt} hidden:    us1=0   us2=0   us3=0\n"
+                f.write(end_str)
+
+    def export_extra_transit_lines(self, output_folder, scen_number=1):
+        to_be_printed = self.transit_lines[['Line', '@hw_aht', '@hw_pt', '@hw_iht']].copy()
+        # Reformat line numbers to match emme format
+        to_be_printed = to_be_printed.rename(columns={'Line':'line'})
+        to_be_printed['line'] = to_be_printed['line'].apply(lambda num: f"'{str(num).ljust(6)}'")
+
+        # Prepare export by creating the extra_attribute definitions read by EMME
+        definition_string = "t extra_attributes\n@hw_aht TRANSIT_LINE 0.0 ''\n"\
+                            +"@hw_pt TRANSIT_LINE 0.0 ''\n@hw_iht TRANSIT_LINE 0.0 ''\n"\
+                            +"end extra_attributes\n"
+
+        output_path = Path(output_folder) / f"extra_transit_lines_{scen_number}.txt"
+        with open(output_path, 'a') as f:
+            f.write(definition_string)
+            # Use to_string with formatters to ensure proper spacing and alignment
+            f.write(to_be_printed.to_string(index=False, header=True, formatters={
+            'line': '{:<8}'.format,
+            '@hw_aht': '{:>9}'.format,
+            '@hw_pt': '{:>9}'.format,
+            '@hw_iht': '{:>9}'.format}))
 
     def export(self, output_folder):
         self.export_transit_lines(output_folder)

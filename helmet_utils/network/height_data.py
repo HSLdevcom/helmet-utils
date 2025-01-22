@@ -22,13 +22,14 @@ pd.options.display.float_format = '{:.6f}'.format
 
 
 class HeightData:
-    def __init__(self, api_key, network: EmmeNetwork, in_place=False):
-        self.network = network if in_place else network.copy()
+    def __init__(self, api_key, nodes, links, in_place=False):
+        self.nodes = nodes.to_crs("EPSG:3067")[['Node', 'is_centroid', 'geometry']].copy()
+        self.links = links.to_crs("EPSG:3067")[['From','To','@hinta_aht', '@hinta_pt', '@hinta_iht', '@pyoratieluokka', 'geometry']].copy()
         self.api_key = api_key
 
 
-    def process_half_squares(self, half_squares, api_key: str, network):
-        idx = self.build_index(network)  # Build the index in the local process
+    def process_half_squares(self, half_squares, api_key: str, nodes):
+        idx = self.build_index(nodes)  # Build the index in the local process
         processed_squares = []
         for i, coords in enumerate(half_squares.bounds.values):
             coords_buff = coords + [-10, -10, 10, 10]
@@ -37,9 +38,9 @@ class HeightData:
                 continue
 
             points_with_elevations = self.read_height_data_parallel(
-                np.asarray(network.loc[potential].union_all().buffer(20).bounds),
+                np.asarray(nodes.loc[potential].union_all().buffer(20).bounds),
                 api_key,
-                network.loc[potential]['geometry']
+                nodes.loc[potential]['geometry']
             )
             processed_squares.append((points_with_elevations.index, points_with_elevations))
         return processed_squares
@@ -55,10 +56,10 @@ class HeightData:
         print("\tif __name__ == '__main__':")
         print("\t\tmain()")
         print("\ninstead of writing python code outside a main function\n")
-        centroids = self.network.nodes[self.network.nodes['is_centroid']==1].copy()
+        centroids = self.nodes[self.nodes['is_centroid']==1].copy()
         centroids['geometry'] = centroids.apply(lambda row: Point([row.geometry.x, row.geometry.y, 0.0]), axis=1)
-        self.network.nodes.loc[centroids.index, 'geometry'] = centroids['geometry']
-        not_centroids = self.network.nodes[self.network.nodes['is_centroid'] == 0].copy()
+        self.nodes.loc[centroids.index, 'geometry'] = centroids['geometry']
+        not_centroids = self.nodes[self.nodes['is_centroid'] == 0].copy()
         self._prepare_area(not_centroids)
         num_squares = len(self.gdf_squares.explode(index_parts=False).index)
         half = num_squares // 2
@@ -110,13 +111,12 @@ class HeightData:
                         updated_points.update(points[1])
         
         for i, point in updated_points.items():
-            self.network.nodes.loc[i, 'geometry'] = point
+            self.nodes.loc[i, 'geometry'] = point
         print("\nFinished processing height data!")
-        return self.network.nodes
+        return self.nodes
     
     def _prepare_area(self, nodes: gpd.GeoDataFrame):
         print("Cutting model area into manageable squares...", end='\r')
-        nodes = nodes.to_crs("EPSG:3067")
         network_area = nodes.union_all().convex_hull
         geometry_cut = self.quadrat_cut_geometry(network_area.buffer(10), quadrat_width=9500) 
         self.gdf_squares = gpd.GeoDataFrame(geometry=pd.Series(geometry_cut), crs="EPSG:3067")
@@ -295,7 +295,7 @@ class HeightData:
         df_el["geometry_i"] = df_el["From"].map(node_dict)
 
         # Apply the create_linestring function to each row
-        df_el['line_geometry'] = df_el.apply(lambda row: create_linestring(row["geometry_i"], row['geometry_j']), axis=1)
+        df_el['line_geometry'] = df_el.apply(lambda row: create_linestring(row["geometry_i"], row['geometry_j']) if pd.notna(row['geometry_j']) else row["geometry_i"], axis=1)
 
         return df_el
 
@@ -303,10 +303,10 @@ class HeightData:
         if elevation_fixes is None:
             elevation_fixes = Path(__file__).resolve().parent.parent / 'data' / 'elevation_fixes.csv'
         print("Writing gradients to network...")
-        centroids = self.network.nodes[self.network.nodes["is_centroid"] == 1]
+        centroids = self.nodes[self.nodes["is_centroid"] == 1]
 
         # Create a dictionary of Node to Point objects
-        node_dict = dict(zip(self.network.nodes["Node"], self.network.nodes["geometry"]))
+        node_dict = dict(zip(self.nodes["Node"], self.nodes["geometry"]))
 
         df_fixes = pd.read_csv(elevation_fixes)
         for i, row in df_fixes.iterrows():
@@ -314,19 +314,15 @@ class HeightData:
             new_geom = Point([geom.x, geom.y, row['elevation']])
             node_dict.update({row['node']: new_geom})
 
-        df_el = self.process_geometries(self.network, node_dict)
+        df_el = self.process_geometries(self.links, node_dict)
         gdf_el = gpd.GeoDataFrame(df_el, geometry="line_geometry", crs="EPSG:3067")
-        gdf_el['elevation_i'] = gdf.apply(lambda row: row['geometry_i'].coords[0][2], axis=1)
-        gdf_el['elevation_j'] = gdf.apply(lambda row: row['geometry_j'].coords[1][2] if row['To']>0 else 0.0, axis=1)
+        gdf_el['@korkeus_from'] = gdf_el.apply(lambda row: row['geometry_i'].coords[0][2], axis=1)
+        gdf_el['@korkeus_to'] = gdf_el.apply(lambda row: row['geometry_j'].coords[0][2] if row['To']>0 else 0.0, axis=1)
         gdf = gdf_el.drop(columns=["geometry_i", "geometry_j"])
-        gdf['elevation_difference'] = gdf.apply(lambda row: row['line_geometry'].coords[1][2] - row['line_geometry'].coords[0][2], axis=1)
+        gdf['elevation_difference'] = gdf.apply(lambda row: row['line_geometry'].coords[1][2] - row['line_geometry'].coords[0][2] if row['To']>0 else 0.0, axis=1)
         gdf['@kaltevuus'] = gdf.apply(lambda row: ((row['line_geometry'].coords[0][2] - row['line_geometry'].coords[1][2]) / row['line_geometry'].length) * 100 if row['To']>0 else 0.0, axis=1)
         gdf.loc[gdf['From'].isin(centroids['Node']) | gdf['To'].isin(centroids['Node']), '@kaltevuus'] = 0.0
 
-        self.network['@kaltevuus'] = gdf.set_index(['From', 'To'])['@kaltevuus']
-        self.network['@kaltevuus'] = self.network['@kaltevuus'].replace('', np.nan)
-        self.network['@korkeus_from'] = gdf.set_index(['From', 'To'])['elevation_i']
-        self.network['@korkeus_to'] = gdf.set_index(['From', 'To'])['elevation_j']
 
         if output:
             # Tiedoston luominen
@@ -344,7 +340,8 @@ class HeightData:
             # map.save('map.html')
             # webbrowser.open('map.html')
         else:
-            return self.network
+            return gdf
+
 
 # def main():
 #     base_network_file = "verkko_23/Scenario_200/base_network_200.txt"

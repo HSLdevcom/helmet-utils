@@ -1,10 +1,9 @@
 import argparse
-from helmet_utils.network.scenario_reader import ScenarioReader
+from helmet_utils.network import scenario_reader
 
 def add_height_data(scenario_folder: str, api_key: str, processors: int, output_folder: str = None):
     # Read the network
-    scenario_reader = ScenarioReader(scenario_folder)
-    scenario = scenario_reader.scenario()
+    scenario = scenario_reader.get_emme_scenario(scenario_folder)
 
     # Add height data
     scenario.add_gradients(api_key=api_key, processors=processors, in_place=False)

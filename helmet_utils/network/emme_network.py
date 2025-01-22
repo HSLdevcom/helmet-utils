@@ -41,21 +41,21 @@ class EmmeNetwork(gpd.GeoDataFrame):
         to_be_visualized = self[self['To']>0].copy()
         to_be_visualized['geometry'] = to_be_visualized['geometry'].apply(lambda x: x.offset_curve(-0.6))
         # Define different visualizations based on the type
-        if visualization_type == 'default':
+        if (visualization_type == 'default'):
             columns_to_drop = [col for col in to_be_visualized.columns if col.startswith('@')]
             # Drop the columns and use the 'explore' method from GeoDataFrame
             no_extras = to_be_visualized.drop(columns=columns_to_drop)
             map = no_extras.explore(column=column, cmap=cmap)
             map.save('map.html')
             webbrowser.open('map.html')
-        elif visualization_type == 'bikes':
+        elif (visualization_type == 'bikes'):
             visualize_bikes = to_be_visualized[to_be_visualized['@pyoratieluokka']>0].copy()
             visualize_bikes['geometry'] = visualize_bikes['geometry'].apply(lambda x: x.offset_curve(-1))
             map = to_be_visualized.explore(column=column, cmap=cmap)
             visualize_bikes.explore(m=map, column="@pyoratieluokka", cmap=cmap)
             map.save('map.html')
             webbrowser.open('map.html')
-        elif visualization_type == 'all':
+        elif (visualization_type == 'all'):
             map = to_be_visualized.explore(column=column, cmap=cmap)
             map.save('map.html')
             webbrowser.open('map.html')
@@ -65,30 +65,29 @@ class EmmeNetwork(gpd.GeoDataFrame):
 
     @property
     def nodes(self):
-         # Create a list to store node data
+        # Create a list to store node data
         nodes_data = []
+        
+        # Identify all columns with '_from' suffix
+        from_columns = [col for col in self.columns if col.endswith('_from')]
         
         # Iterate through all links (rows) in the network
         for _, link in self.iterrows():            
-            # Extract the first and last points of the linestring geometry
+            # Extract the first point of the linestring geometry
             from_geometry = Point(link.geometry.coords[0])
             
             # Check if 'From' node is a centroid
             from_is_centroid = 1 if link['c_from'].startswith('a*') else 0
-
-            # Extract the elevation and other attributes for the 'From' node
-            elevation_from = link.get('@korkeus_from', None)
-            hsl_from = link.get('@hsl_from', None)
-
-            nodes_data.append({'Node': link['From'], 
-                               'geometry': from_geometry, 
-                               'is_centroid': from_is_centroid, 
-                               'Data1': link['Data1_from'],
-                               'Data2': link['Data2_from'],
-                               'Data3': link['Data3_from'],
-                               'Label': link['Label_from'],
-                               '@korkeus': elevation_from,
-                               '@hsl': hsl_from})
+            
+            # Extract the attributes for the 'From' node
+            node_data = {'Node': link['From'], 
+                         'geometry': from_geometry, 
+                         'is_centroid': from_is_centroid}
+            
+            for col in from_columns:
+                node_data[col.replace('_from', '')] = link[col]
+            
+            nodes_data.append(node_data)
 
         # Create a DataFrame from the nodes data
         nodes_df = pd.DataFrame(nodes_data)
@@ -104,16 +103,23 @@ class EmmeNetwork(gpd.GeoDataFrame):
     def add_gradients(self, api_key, processors, elevation_fixes=None, full=True, in_place=False):
         if elevation_fixes is None:
             elevation_fixes = Path(__file__).resolve().parent.parent / 'data' / 'elevation_fixes.csv'
-        height_data_writer = HeightData(api_key=api_key, network=self, in_place=in_place)
+        height_data_writer = HeightData(api_key=api_key, nodes=self.nodes, links=self, in_place=in_place)
+        print("here1")
         height_data_writer.add_height_data_parallel(processors=processors)
-        updated_network = height_data_writer.gradient(elevation_fixes=elevation_fixes)
-        if in_place:
-            self.update(updated_network)
-        else:
-            return EmmeNetwork(updated_network)
-    
-    def export_base_network(self, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
+        print("here2")
+        gdf = height_data_writer.gradient(elevation_fixes=elevation_fixes)
         
+        # Merge @kaltevuus, @korkeus_from, @korkeus_to to the original network
+        df_network_with_height = pd.merge(self, gdf[['From', 'To', '@kaltevuus', '@korkeus_from', '@korkeus_to']], on=['From', 'To'], how='left')
+        print(self.head())
+        print(gdf.head())
+        print(df_network_with_height.head())
+        network_with_height = EmmeNetwork(df_network_with_height)
+        if in_place:
+            self.update(network_with_height)
+        return network_with_height
+    
+    def export_base_network(self, output_folder, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         links = self.copy()
         links['c'] = 'a'
@@ -127,8 +133,18 @@ class EmmeNetwork(gpd.GeoDataFrame):
             else:
                 return str(value)
 
+        def format_float(value):
+            if value.is_integer():
+                return str(int(value))
+            else:
+                return f"{value:.6f}".rstrip('0').rstrip('.')
+
         nodes['X-coord'] = nodes['geometry'].x.apply(float_to_string)
         nodes['Y-coord'] = nodes['geometry'].y.apply(float_to_string)
+        nodes['Data1'] = nodes['Data1'].apply(format_float)
+        nodes['Data2'] = nodes['Data2'].apply(format_float)
+        nodes['Data3'] = nodes['Data3'].apply(format_float)
+
         
         # Drop 'geometry' column and create 'c' column based on 'is_centroid'
         nodes = nodes.drop(columns=['geometry'])
@@ -138,16 +154,22 @@ class EmmeNetwork(gpd.GeoDataFrame):
 
         # Reorder the columns
         nodes = nodes[['c', 'Node', 'X-coord', 'Y-coord', 'Data1', 'Data2', 'Data3', 'Label']]
-        f = open(f"base_network_{scen_number}.txt", 'a')
-        f.write(f"c Modeller - Base Network Transaction\nc Date: {current_date}\nc Project: {project_name}\nc Scenario {scen_number}: {scen_name}\nt nodes\n")
-        self._to_fwf(nodes, f)
-        f.write("\nt links\n")
-        self._to_fwf(links, f)
-        f.close()
+        links['Length'] = links['Length'].apply(format_float)
+        links['Typ'] = links['Typ'].apply(format_float)
+        links['Lan'] = links['Lan'].apply(format_float)
+        links['VDF'] = links['VDF'].apply(format_float)
+        links['Data1'] = links['Data1'].apply(format_float)
+        links['Data2'] = links['Data2'].apply(format_float)
+        links['Data3'] = links['Data3'].apply(format_float)
 
-        return
+        output_path = Path(output_folder) / f"base_network_{scen_number}.txt"
+        with open(output_path, 'w') as f:
+            f.write(f"c Modeller - Base Network Transaction\nc Date: {current_date}\nc Project: {project_name}\nc Scenario {scen_number}: {scen_name}\nt nodes\n")
+            self._to_fwf(nodes, f)
+            f.write("\nt links\n")
+            self._to_fwf(links, f)
 
-    def export_extra_links(self, scen_number=1, include_model_results=True):
+    def export_extra_links(self, output_folder, scen_number=1, include_model_results=True):
         model_has_run = "@time_freeflow_car" in self.columns
         helmet_5 = "@kaltevuus" in self.columns
         self.fillna(0, inplace=True)
@@ -194,33 +216,35 @@ class EmmeNetwork(gpd.GeoDataFrame):
 
         formatted_df = to_be_printed.map(lambda x: f'{x:g}' if isinstance(x, (int, float)) else x)
 
-        f = open(f"extra_links_{scen_number}.txt", 'a')
-        f.write(definition_string)
-        formatted_df.to_string(f, index=None)
-        f.close()
-        return
+        output_path = Path(output_folder) / f"extra_links_{scen_number}.txt"
+        with open(output_path, 'a') as f:
+            f.write(definition_string)
+            formatted_df.to_string(f, index=None)
 
-    def export_extra_nodes(self, scen_number=1):
+    def export_extra_nodes(self, output_folder, scen_number=1):
         # Select all columns starting with "@" and ending in '_from' or '_to'
-        to_be_printed = self.nodes[['Node', '@korkeus', '@hsl']].copy()
-        
+        if "@korkeus" in self.nodes.columns:
+            to_be_printed = self.nodes[['Node', '@korkeus', '@hsl']].copy()
+        else:
+            to_be_printed = self.nodes[['Node', '@hsl']].copy()
+        to_be_printed = to_be_printed.rename(columns={'Node': 'inode'})
+
         # Prepare export by creating the extra_attribute definitions read by EMME
         definition_string = "t extra_attributes\n"
         for column_name in to_be_printed.columns:
-            if column_name == 'Node':
+            if column_name == 'inode':
                 continue
             definition_string = definition_string + f"{column_name} NODE 0.0 ''\n"
         definition_string = definition_string + "end extra_attributes\n"
 
         formatted_df = to_be_printed.map(lambda x: f'{x:g}' if isinstance(x, (int, float)) else x)
 
-        f = open(f"extra_nodes_{scen_number}.txt", 'a')
-        f.write(definition_string)
-        formatted_df.to_string(f, index=None)
-        f.close()
-        return
-    
-    def export_netfield_links(self, scen_number=1):
+        output_path = Path(output_folder) / f"extra_nodes_{scen_number}.txt"
+        with open(output_path, 'a') as f:
+            f.write(definition_string)
+            formatted_df.to_string(f, index=None)
+
+    def export_netfield_links(self, output_folder, scen_number=1):
         self.fillna(0, inplace=True)
         to_be_printed = self.loc[self['To']>0, self.columns[self.columns.str.startswith('#') | self.columns.isin(['From', 'To'])]].copy()
         to_be_printed = to_be_printed.rename(columns={'From': 'inode', 'To': 'jnode'})
@@ -247,18 +271,24 @@ class EmmeNetwork(gpd.GeoDataFrame):
 
         formatted_df = to_be_printed.map(lambda x: f'{x:g}' if isinstance(x, (int, float)) else x)
 
+        output_path = Path(output_folder) / f"netfield_links_{scen_number}.txt"
+        with open(output_path, 'a') as f:
+            f.write(definition_string)
+            formatted_df.to_string(f, index=None)
 
-        f = open(f"netfield_links_{scen_number}.txt", 'a')
-        f.write(definition_string)
-        formatted_df.to_string(f, index=None)
-        f.close()
-        return
+    def export(self, output_folder):
+        self.export_base_network(output_folder)
+        self.export_extra_links(output_folder)
+        self.export_extra_nodes(output_folder)
+        self.export_netfield_links(output_folder)
 
     def export_geopackage(self, filename):
         self.to_file(filename, driver='GPKG')
     
     def _to_fwf(self, df, file):
         content = tabulate(df.values.tolist(), list(df.columns), tablefmt="plain", disable_numparse=True)
+        # Adjust formatting to match the original file
+        # content = content.replace("  ", " ").replace(" \n", "\n")
         file.write(content)
 
     def export(self, output_folder):

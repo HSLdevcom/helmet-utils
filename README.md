@@ -19,29 +19,23 @@ To use `helmet_utils` as a Python library, you can import the necessary classes 
 Adding height data to a network:
 
 ```python
-from helmet_utils.network.scenario_reader import ScenarioReader
+from helmet_utils.network import scenario_reader
 
 # Initialize the ScenarioReader with the path to your scenario directory
-scenario_reader = ScenarioReader('path/to/scenario_directory')
+scenario = scenario_reader.get_emme_scenario('path/to/scenario_directory')
 
-# Get the scenario object
-scenario = scenario_reader.scenario()
-
-# Perform operations on the scenario
-scenario.add_gradients(api_key='your_api_key', processors=4)
+# Perform operations on the scenario, such as adding gradients
+scenario.add_gradients(api_key='your_api_key', processors=4)  # Currently supports 2 or 4 processors
 scenario.export('output_folder')
 ```
 
 You can access the road or transit networks as GeoDataFrame -like objects. Here is how you can print information about centroids:
 
 ```python
-from helmet_utils.network.scenario_reader import ScenarioReader
+from helmet_utils.network import scenario_reader
 
 # Initialize the ScenarioReader with the path to your scenario directory
-scenario_reader = ScenarioReader('path/to/scenario_directory')
-
-# Get the scenario object
-scenario = scenario_reader.scenario()
+scenario = scenario_reader.get_emme_scenario('path/to/scenario_directory')
 
 # Get the network and transit objects
 network = scenario.network

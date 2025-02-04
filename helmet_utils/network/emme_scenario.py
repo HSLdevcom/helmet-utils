@@ -21,12 +21,12 @@ class EmmeScenario:
         self.turns = turns
         self.vehicles = vehicles
 
-    def add_gradients(self, api_key, processors=2, elevation_fixes=None, in_place=False):
+    def add_gradients(self, api_key, processors=2, elevation_fixes=None, full=True):
         if api_key is None:
             raise ValueError("Please provide a valid Maanmittauslaitos API key")
         if elevation_fixes is None:
             elevation_fixes = Path(__file__).resolve().parent.parent / 'data' / 'elevation_fixes.csv'
-        self.network.add_gradients(api_key, processors, in_place=in_place, elevation_fixes=elevation_fixes)
+        self.network = self.network.add_gradients(api_key, processors, elevation_fixes=elevation_fixes, full=full)
 
     def export_link_shape(self, output_folder, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -75,16 +75,23 @@ class EmmeScenario:
         if not scenario_name:
             scenario_name = self.scenario_name
         
+        # Export network files
         self.network.export_base_network(output_folder, project_name=project_name, scen_name=scenario_name, export_datetime=export_datetime)
         self.network.export_extra_links(output_folder)
         self.network.export_extra_nodes(output_folder)
+        self.network.export_netfield_links(output_folder)
+        # Export the Scenario specific files
         self.export_link_shape(output_folder, project_name=project_name, scen_name=scenario_name, export_datetime=export_datetime)
         self.export_modes(output_folder, project_name=project_name, scen_name=scenario_name, export_datetime=export_datetime)
         self.export_turns(output_folder, project_name=project_name, scen_name=scenario_name, export_datetime=export_datetime)
         self.export_vehicles(output_folder, project_name=project_name, scen_name=scenario_name, export_datetime=export_datetime)
-        # TODO: Add export for transit lines
+        # Export transit lines
         self.transit.export_transit_lines(output_folder, export_datetime=export_datetime)
         self.transit.export_extra_transit_lines(output_folder)
+        self.transit.export_netfield_transit_lines(output_folder)
+        self.transit.export_segments(output_folder)
+        # self.transit.export_netfield_segments(output_folder)
+        # self.transit.export_extra_segments(output_folder)
     
     def _to_fwf(self, df, file):
         content = tabulate(df.values.tolist(), list(df.columns), tablefmt="plain", disable_numparse=True)

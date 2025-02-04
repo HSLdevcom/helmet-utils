@@ -232,12 +232,12 @@ class ScenarioReader:
                     header.append(line)
             # The next line contains the column names
             columns = file.readline().strip().split()
-            columns.append('segment_num')  # Add segment_num to columns
+            columns.append('Segment_num')  # Add segment_num to columns
             current_line_id = None
             segment_num = 0
             for line in file.readlines():
                 parts = line.strip().split("'")
-                line_id = f"'{parts[1]}'"
+                line_id = str(parts[1]).strip()
                 if line_id != current_line_id:
                     current_line_id = line_id
                     segment_num = 1
@@ -246,6 +246,7 @@ class ScenarioReader:
                 data.append([line_id] + parts[2].strip().split() + [segment_num])  # Add segment_num to data
 
         df_segments = pd.DataFrame(data, columns=columns)
+        df_segments = df_segments.rename(columns={'line': 'Line', 'segment_num': 'Segment_num'})
         return df_segments
     
     def _netfield_segments_to_df(self):
@@ -264,7 +265,7 @@ class ScenarioReader:
             segment_num = 0
             for line in file.readlines():
                 parts = line.strip().split("'")
-                line_id = f"'{parts[1]}'"
+                line_id = parts[1].strip()
                 if line_id != current_line_id:
                     current_line_id = line_id
                     segment_num = 1
@@ -273,6 +274,7 @@ class ScenarioReader:
                 data.append([line_id] + parts[2].strip().split() + [parts[3]] + [segment_num])  # Add segment_num to data
 
         df_netfield_segments = pd.DataFrame(data, columns=columns)
+        df_netfield_segments = df_netfield_segments.rename(columns={'line': 'Line', 'segment_num': 'Segment_num'})
         return df_netfield_segments
     
     def _netfield_transit_lines_to_df(self):
@@ -288,7 +290,7 @@ class ScenarioReader:
             columns = file.readline().strip().split()
             for line in file.readlines():
                 parts = re.split("'\s+'", line.strip())
-                data.append([part.strip("'") for part in parts])  # Add segment_num to data
+                data.append([part.strip("'").strip() for part in parts])  # Add segment_num to data
             
         # Read the rest of the file into a DataFrame
         df_netfield_transit_lines = pd.DataFrame(data, columns=columns)
@@ -309,7 +311,7 @@ class ScenarioReader:
             rows = []
             for line in file.readlines():
                 sections = line.split()
-                linenum = sections[0].strip("'")
+                linenum = sections[0].strip("'").strip()
                 try:
                     aht, pt, iht = sections[2:]
                 except ValueError:
@@ -356,7 +358,7 @@ class ScenarioReader:
         # Process each line in the file
         for line in lines:
             if transit_line_header in line: # Get the line header for the current transit line
-                current_line_code = line.split("'")[1]
+                current_line_code = str(line.split("'")[1]).strip()
                 direction = current_line_code[-1]
                 parts = line.split()
                 mod, veh, headwy, speed = parts[1:5]
@@ -388,29 +390,28 @@ class ScenarioReader:
         if self.netfield_transit_lines_file:
             df_netfield_transit_lines = self._netfield_transit_lines_to_df()
             df_transit_lines_with_geom = df_transit_lines.merge(df_netfield_transit_lines, left_on="Line", right_on='line', how='left')
+        else:
+            df_transit_lines_with_geom = df_transit_lines.copy()
         
         df_transit_stops = df_transit_lines.copy()
         df_transit_stops['geometry'] = df_transit_stops['Line'].map(lambda x: MultiPoint(transit_line_stops.get(x, [])))
-        df_transit_lines_with_geom = df_transit_lines.copy()
         df_transit_lines_with_geom['geometry'] = df_transit_lines_with_geom['Line'].map(lambda x: LineString(transit_line_routes.get(x, [])))
-        df_transit_lines_with_geom = pd.merge(df_transit_lines_with_geom, df_headways, on="Line")
+        df_transit_lines_with_geom = pd.merge(df_transit_lines_with_geom, df_headways, on="Line", how='left')
 
         df_routes.set_index(['Line', 'Segment_num'], inplace=True)
         df_transit_lines.set_index('Line', inplace=True)
         combined_gdf = df_routes.merge(df_transit_lines, left_index=True, right_index=True, how='left')
-
         if self.extra_segments_file:
-            df_extra_segments = self._extra_segments_to_df()
-            combined_gdf = combined_gdf.reset_index()
-            combined_gdf = combined_gdf.merge(df_extra_segments, left_on=['Line', 'Segment_num'], right_on=['line', 'segment_num'], how='left')
-            combined_gdf = combined_gdf.set_index(['Line', 'Segment_num'])
+            df_extra_segments = self._extra_segments_to_df().drop(columns=['inode', 'jnode'])
+            df_extra_segments.set_index(['Line', 'Segment_num'], inplace=True)
+            combined_gdf = combined_gdf.merge(df_extra_segments, left_index=True, right_index=True, how='left')
+            combined_gdf = combined_gdf.drop(columns=['loop_idx_y'])
+
         
         if self.netfield_segments_file:
-            df_netfield_segments = self._netfield_segments_to_df()
-            combined_gdf = combined_gdf.reset_index()
-            combined_gdf = combined_gdf.merge(df_netfield_segments, left_on=['Line', 'Segment_num'], right_on=['line', 'segment_num'], how='left')
-            combined_gdf = combined_gdf.set_index(['Line', 'Segment_num'])
-        
+            df_netfield_segments = self._netfield_segments_to_df().drop(columns=['inode', 'jnode'])
+            df_netfield_segments.set_index(['Line', 'Segment_num'], inplace=True)
+            combined_gdf = combined_gdf.merge(df_netfield_segments, left_index=True, right_index=True, how='left')        
 
         # Convert the DataFrames to GeoDataFrames
         transit_segments_gdf = gpd.GeoDataFrame(combined_gdf, crs='EPSG:3879')  # Full data, each segment of each line
@@ -419,6 +420,7 @@ class ScenarioReader:
 
         return transit_segments_gdf, transit_lines_gdf, stops_gdf
     
+
     def separate_route_links(self, single_route, transit_lines_data, current_line_code):
         route_stops = []
         stop_flag = False

@@ -1,15 +1,14 @@
 import argparse
 from helmet_utils.network import scenario_reader
 
-def add_height_data(scenario_folder: str, api_key: str, processors: int, output_folder: str = None):
+def add_height_data(scenario_folder: str, api_key: str, processors: int, output_folder: str = None, full: bool = True):
     # Read the network
     scenario = scenario_reader.get_emme_scenario(scenario_folder)
+    network = scenario.network
+    network.add_gradients(api_key, processors=processors, full=full)
+    network.export_extra_links(output_folder=output_folder)
+    network.export_extra_nodes(output_folder=output_folder)
 
-    # Add height data
-    scenario.add_gradients(api_key=api_key, processors=processors, in_place=False)
-
-    # Save the updated network
-    scenario.export(output_folder)
     print(f"Height data added to network. Updated network saved to {output_folder or f'updated_{scenario_reader.input_folder}'}")
 
 def main():

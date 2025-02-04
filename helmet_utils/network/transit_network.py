@@ -5,6 +5,8 @@ from pathlib import Path
 from tabulate import tabulate
 import pandas as pd
 
+import os
+
 class TransitNetwork():
 
     def __init__(self, segments, transit_lines, stops):
@@ -77,6 +79,7 @@ class TransitNetwork():
 
     # Export functions
     def export_transit_lines(self, output_folder, scen_number=1, export_datetime=None):
+        os.makedirs(output_folder, exist_ok=True)
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         header = (
             "c Modeller - Transit Line Transaction\n"
@@ -113,6 +116,7 @@ class TransitNetwork():
 
     # TODO: rewrite in a more general way like EmmeNetwork functions
     def export_extra_transit_lines(self, output_folder, scen_number=1):
+        os.makedirs(output_folder, exist_ok=True)
         to_be_printed = self.transit_lines[['Line', '@hw_aht', '@hw_pt', '@hw_iht']].copy()
         # Reformat line numbers to match emme format
         to_be_printed = to_be_printed.rename(columns={'Line':'line'})
@@ -134,6 +138,7 @@ class TransitNetwork():
             '@hw_iht': '{:>9}'.format}))
 
     def export_segments(self, output_folder, scen_number=1):
+        os.makedirs(output_folder, exist_ok=True)
         to_be_printed = self.segments.copy().reset_index()
         extra_columns = [col for col in to_be_printed.columns if '@' in col]
         netfield_columns = [col for col in to_be_printed.columns if '#' in col]
@@ -144,6 +149,7 @@ class TransitNetwork():
             self._export_netfield_segments(to_be_printed, output_folder, scen_number, netfield_columns)
 
     def _export_extra_segments(self, to_be_printed, output_folder, scen_number, extra_columns):
+        os.makedirs(output_folder, exist_ok=True)
         to_be_printed = to_be_printed[['Line','From','To', 'loop_idx'] + extra_columns]
         to_be_printed = to_be_printed.rename(columns={'Line': 'line', 'From': 'inode', 'To': 'jnode'})
         to_be_printed['line'] = to_be_printed['line'].apply(lambda num: f"'{str(num).ljust(6)}'")
@@ -171,6 +177,7 @@ class TransitNetwork():
             f.write(formatted_df.to_string(index=None))
 
     def _export_netfield_segments(self, to_be_printed, output_folder, scen_number, netfield_columns):
+        os.makedirs(output_folder, exist_ok=True)
         to_be_printed = to_be_printed[['Line','From','To', 'loop_idx'] + netfield_columns]
         to_be_printed = to_be_printed.rename(columns={'Line': 'line', 'From': 'inode', 'To': 'jnode'})
         to_be_printed['line'] = to_be_printed['line'].apply(lambda num: f"'{str(num).ljust(6)}'")
@@ -191,6 +198,7 @@ class TransitNetwork():
             self._to_fwf(formatted_df, f)
 
     def export_extra_segments(self, output_folder, scen_number=1):
+        os.makedirs(output_folder, exist_ok=True)
         to_be_printed = self.segments.copy().reset_index()
         # Check if columns with '@' exist, otherwise return None
         extra_columns = [col for col in to_be_printed.columns if '@' in col]
@@ -230,6 +238,7 @@ class TransitNetwork():
             f.write(formatted_df.to_string(index=None))
 
     def export_netfield_transit_lines(self, output_folder, scen_number=1):
+        os.makedirs(output_folder, exist_ok=True)
         to_be_printed = self.transit_lines.copy()
         netfield_columns = [col for col in to_be_printed.columns if '#' in col]
         print(to_be_printed.columns)
@@ -254,6 +263,7 @@ class TransitNetwork():
             to_be_printed.to_string(f, index=None)
                
     def export_netfield_segments(self, output_folder, scen_number=1):
+        os.makedirs(output_folder, exist_ok=True)
         to_be_printed = self.segments.copy().reset_index()
         # Check if columns with '@' exist, otherwise return None
         netfield_columns = [col for col in to_be_printed.columns if '#' in col]

@@ -29,6 +29,7 @@ class EmmeScenario:
         self.network = self.network.add_gradients(api_key, processors, elevation_fixes=elevation_fixes, full=full)
 
     def export_link_shape(self, output_folder, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         output_path = Path(output_folder) / f"link_shape_{scen_number}.txt"
         with open(output_path, 'w') as f:
@@ -37,6 +38,7 @@ class EmmeScenario:
                 self.link_shape.to_csv(f, index=False, sep=' ', header=False)
     
     def export_modes(self, output_folder, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         output_path = Path(output_folder) / f"modes_{scen_number}.txt"
         with open(output_path, 'w') as f:
@@ -46,6 +48,7 @@ class EmmeScenario:
 
     # TODO: Perhaps integrate to EmmeNetwork
     def export_turns(self, output_folder, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         output_path = Path(output_folder) / f"turns_{scen_number}.txt"
         with open(output_path, 'w') as f:
@@ -55,6 +58,7 @@ class EmmeScenario:
 
     # TODO: Perhaps integrate to TransitNetwork
     def export_vehicles(self, output_folder, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         output_path = Path(output_folder) / f"vehicles_{scen_number}.txt"
         with open(output_path, 'w') as f:

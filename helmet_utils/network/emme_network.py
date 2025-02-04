@@ -8,6 +8,7 @@ from shapely.ops import Point
 from tabulate import tabulate
 from .height_data import HeightData
 from pathlib import Path
+import os
 
 class EmmeNetwork(gpd.GeoDataFrame):
     """
@@ -85,7 +86,8 @@ class EmmeNetwork(gpd.GeoDataFrame):
         unique_nodes_df = nodes_df.drop_duplicates(subset='Node')
         nodes_gdf = gpd.GeoDataFrame(unique_nodes_df, geometry='geometry', crs=self.crs)
         nodes_gdf = self._add_hsl_extra_attribute(nodes_gdf)
-        
+        nodes_gdf = nodes_gdf.sort_values(by='Node', ascending=True)
+
         return nodes_gdf
     
     @property
@@ -154,6 +156,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
             return f"{value:.6f}".rstrip('0').rstrip('.')
 
     def export_base_network(self, output_folder, project_name='default_project', scen_number='1', scen_name='default_scenario', export_datetime=None):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         current_date = export_datetime if export_datetime else datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         links = self.copy()
         links['c'] = 'a'
@@ -196,6 +199,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
         return nodes
 
     def export_extra_links(self, output_folder, scen_number=1, include_model_results=True):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         model_has_run = "@time_freeflow_car" in self.columns
         helmet_5 = "@kaltevuus" in self.columns
         self.fillna(0, inplace=True)
@@ -253,6 +257,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
             self._to_fwf(to_be_printed, f)
 
     def export_extra_nodes(self, output_folder, scen_number=1):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         # Select the 'Node' column and all columns containing '@'
         to_be_printed = self.nodes[['Node'] + [col for col in self.nodes.columns if '@' in col]].copy()
         to_be_printed = to_be_printed.rename(columns={'Node': 'inode'})
@@ -271,7 +276,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
             else:
                 definition_string += f"{column_name} NODE 0.0 ''\n"
         definition_string += "end extra_attributes\n"
-
+        to_be_printed = to_be_printed.sort_values(by='inode', ascending=True)
         formatted_df = to_be_printed.map(lambda x: f'{x:g}' if isinstance(x, (int, float)) else x)
 
         output_path = Path(output_folder) / f"extra_nodes_{scen_number}.txt"
@@ -296,6 +301,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
         return description_string
 
     def export_netfield_links(self, output_folder, scen_number=1):
+        os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         #TODO: only continue if columns with # are present
         self.fillna(0, inplace=True)
         to_be_printed = self.copy()

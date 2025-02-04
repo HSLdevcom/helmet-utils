@@ -65,7 +65,7 @@ if __name__ == "__main__":
 You can also use `helmet_utils` through the command line. The following command adds height data to the network:
 
 ```sh
-python -m helmet_utils.cli network add-height path/to/scenario_folder --api-key your_api_key --processors 4 --output-folder output_folder
+python -m helmet_utils network add-height path/to/scenario_folder --api-key your_api_key --processors 4 --output-folder output_folder
 ```
 
 ### Command Line Arguments

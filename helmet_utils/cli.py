@@ -1,6 +1,6 @@
 import argparse
 import warnings
-import json
+import ast
 from helmet_utils.network import scenario_reader
 from helmet_utils.zonedata import zonedata_reader
 
@@ -37,14 +37,14 @@ def main():
 
     # Subparser for recalculating zonedata
     parser_recalculate_zonedata = subparsers.add_parser("recalculate_zonedata", help="Recalculate zonedata based on provided inputs")
-    parser_recalculate_zonedata.add_argument("-z", "--zonedata_folder", type=str, required=True, help="Path to the original zonedata folder for a specific year")
+    parser_recalculate_zonedata.add_argument("-d", "--zonedata_folder", type=str, required=True, help="Path to the original zonedata folder for a specific year")
     parser_recalculate_zonedata.add_argument("-o", "--output_folder", type=str, help="Folder to save the recalculated zonedata")
     # If the user wants to split zones, there are two possible methods, either splitting manually and passing in the split zone geometries and changes, or automatically splitting.
     # These two must be used together:
-    parser_recalculate_zonedata.add_argument("--zones", type=str, help=".gpkg file with split zone geometries.")
+    parser_recalculate_zonedata.add_argument("-z", "--zones", type=str, help=".gpkg file with split zone geometries.")
     parser_recalculate_zonedata.add_argument("--area_changes", type=str, help="Area changes of the form '{1:[1,4,5], 2:[2,3]}', where 1 and 2 are the original zone numbers and the lists contain the new zones after splitting. Must represent changes in the zone geometry.")
     # Or these two must be used together, but not with the last two:
-    parser_recalculate_zonedata.add_argument("--network_folder", type=str, help="Path to the exported EMME scenario with added centroids")
+    parser_recalculate_zonedata.add_argument("-s", "--scenario_folder", type=str, help="Path to the exported EMME scenario/network folder with added centroids")
     parser_recalculate_zonedata.add_argument("--split_zones", action="store_true", help="Split zones based on the locations of the added centroids")
 
     args = parser.parse_args()
@@ -58,13 +58,13 @@ def main():
         if not (args.zones and args.area_changes) and not args.split_zones:
             print("Error: You must provide either manual or automatic zone splitting information.")
             return
-        area_changes = json.loads(args.area_changes) if args.area_changes else None
+        area_changes = ast.literal_eval(args.area_changes) if args.area_changes else None
         recalculate_zone_data(
             zonedata_folder=args.zonedata_folder,
             split_areas=args.split_zones,
             area_changes=area_changes,
             output_folder=args.output_folder,
-            network_folder=args.network_folder,
+            network_folder=args.scenario_folder,
             zones=args.zones
         )
     else:

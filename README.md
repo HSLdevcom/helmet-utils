@@ -4,7 +4,7 @@ Repository for the processing and adjusting of data used by Helmet. Can be used 
 
 Can be used to add height data to an Emme/Helmet network, which requires a Maanmittauslaitos API key from: https://www.maanmittauslaitos.fi/rajapinnat/api-avaimen-ohje
 
-Landuse functions are still a work in progress, and they cannot currently be used through the command line interface. Most of the work for recalculating the .lnd file has been completed, but 
+Zone data and lam data functions are still a work in progress, and issues may emerge. Also, when exporting a scenario, make sure that all the necessary files have been exported before importing to EMME.
 
 ## Installation and updating
 
@@ -23,7 +23,7 @@ python -m pip install git+https://github.com/HSLdevcom/helmet-utils.git
 
 ## Usage as a Python Library
 
-To use `helmet_utils` as a Python library, you can import the necessary classes and functions in your Python script
+To use `helmet_utils` as a Python library, you can import the necessary classes and functions in your Python script.
 
 Adding height data to a network:
 
@@ -119,6 +119,13 @@ if __name__ == "__main__":
     main()
 
 ```
+
+A common issue that may emerge is that a GeoPandas function turns the EmmeNetwork object into a GeoDataFrame object. Please notify of these issues or create a pull request fixing the issue. In the mean time, you can reassign the variable like this:
+
+```python
+fixed_network = emme_network.EmmeNetwork(network_that_has_become_geodataframe)
+```
+
 
 
 

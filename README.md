@@ -95,7 +95,7 @@ A user can split existing zones into new ones using a GIS program, specifying th
 
 
 ```python
-from helmet_utils.network import scenario_reader
+from helmet_utils.zonedata import zonedata_reader
 
 def main():
     zonedata = zonedata_reader.get_helmet_zonedata("2023", "redrawn_zones.gpkg")
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 Optionally, you can let the program redraw zone geometries automatically from added centroids
 
 ```python
-from helmet_utils.network import scenario_reader
+from helmet_utils.zonedata import zonedata_reader
 
 def main():
     zonedata = zonedata_reader.get_helmet_zonedata("2023")

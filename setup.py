@@ -17,7 +17,7 @@ setup(
         'rasterio'
     ],
     extras_require={
-        'landuse': [
+        'zonedata': [
             'rasterstats'
         ]
     }

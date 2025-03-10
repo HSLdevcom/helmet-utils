@@ -6,12 +6,19 @@ Can be used to add height data to an Emme/Helmet network, which requires a Maanm
 
 Landuse functions are still a work in progress, and they cannot currently be used through the command line interface. Most of the work for recalculating the .lnd file has been completed, but 
 
-## Installation
+## Installation and updating
 
-You can install the package directly from the GitHub repository using pip:
+You can install the package directly from the GitHub repository using pip. **EMME libraries are not required**, so you do not, and probably should not use the Python delivered with EMME:
 
 ```sh
-pip install git+https://github.com/HSLdevcom/helmet-utils.git
+python -m pip install git+https://github.com/HSLdevcom/helmet-utils.git
+```
+
+To update the package, first uninstall it, then reinstall. This is to circumvent version numbering issues
+
+```sh
+python -m pip uninstall helmet-utils
+python -m pip install git+https://github.com/HSLdevcom/helmet-utils.git
 ```
 
 ## Usage as a Python Library

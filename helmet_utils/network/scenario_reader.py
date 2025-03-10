@@ -27,7 +27,7 @@ class ScenarioReader:
 
     def __init__(self, scenario_directory) -> None:
         self.input_folder = scenario_directory
-        print("Currently only supports an Emme/Helmet scenario that has not been run. Data may be lost if the model has been run.")
+        print("Currently only supports an Emme/Helmet scenario that has not been run. Make sure that data has not been lost if the model has run.")
         self.scenario_dir = Path(scenario_directory)
         # Network
         self.base_network_file = next(self.scenario_dir.glob('base_network*.txt'), None)

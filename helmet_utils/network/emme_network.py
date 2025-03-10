@@ -8,7 +8,7 @@ from shapely.ops import Point
 from tabulate import tabulate
 from .height_data import HeightData
 from pathlib import Path
-import os
+import os  # Add this import
 
 class EmmeNetwork(gpd.GeoDataFrame):
     """
@@ -150,7 +150,7 @@ class EmmeNetwork(gpd.GeoDataFrame):
 
     @staticmethod
     def format_float(value):
-        if value.is_integer():
+        if type(value) == int:
             return str(int(value))
         else:
             return f"{value:.6f}".rstrip('0').rstrip('.')
@@ -300,39 +300,26 @@ class EmmeNetwork(gpd.GeoDataFrame):
             description_string += ' iht'
         return description_string
 
-    def export_netfield_links(self, output_folder, scen_number=1):
+    def export_netfield_links(self, output_folder, scen_number=1):  # Does not work
         os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
         #TODO: only continue if columns with # are present
-        self.fillna(0, inplace=True)
-        to_be_printed = self.copy()
+        to_be_printed = self.copy().reset_index()
         netfield_columns = [col for col in to_be_printed.columns if '#' in col and '_to' not in col and '_from' not in col]
         if not netfield_columns:
             return None
-        to_be_printed = to_be_printed.loc[self['To']>0, ['From', 'To'] + netfield_columns]
-
-        to_be_printed = to_be_printed.rename(columns={'From': 'inode', 'To': 'jnode'})
         
+        to_be_printed = to_be_printed.loc[self['To']>0, ['From', 'To'] + netfield_columns]
+        to_be_printed = to_be_printed.rename(columns={'From': 'inode', 'To': 'jnode'})
         to_be_printed = to_be_printed.sort_values(by=['inode', 'jnode'], ascending=True)
-        to_be_printed = to_be_printed[to_be_printed['jnode']>0]
-
+        formatted_df = to_be_printed.map(lambda x: f'{x:g}' if isinstance(x, (int, float)) else x)
         # Prepare export by creating the extra_attribute definitions read by EMME
         definition_string = "t network_fields\n"
         for column_name in to_be_printed.columns:
             if column_name in ['inode', 'jnode']:
                 continue
-            if is_float_dtype(self[column_name]):
-                type_string = 'REAL'
-            elif is_integer_dtype(self[column_name]):
-                type_string = 'INTEGER32'
-            else:
-                unhandled_datatype = self[column_name].dtype()
-                print(f"Datatype not handled: {unhandled_datatype}")
-                
-            column_name_stripped = column_name
-            definition_string = definition_string + f"{column_name} LINK {type_string} '{column_name_stripped.lstrip('#')}'\n"
-        definition_string = definition_string + "end network_fields\n"
-
-        formatted_df = to_be_printed.map(lambda x: f'{x:g}' if isinstance(x, (int, float)) else x)
+            definition_string += f"{column_name} LINK STRING '{column_name.lstrip('#')}'\n"
+            formatted_df[column_name] = formatted_df[column_name].apply(lambda x: f"'{x}'" if pd.notnull(x) else "''")
+        definition_string += "end network_fields\n"
 
         output_path = Path(output_folder) / f"netfield_links_{scen_number}.txt"
         with open(output_path, 'a') as f:
@@ -374,11 +361,18 @@ class EmmeNetwork(gpd.GeoDataFrame):
         else:
             new_gdf = super().drop(labels=labels, axis=axis, index=index, columns=columns, level=level, inplace=inplace, errors=errors)
             new_emme_network = EmmeNetwork(new_gdf)
-            new_emme_network.__dict__.update(self.__dict__)
             return new_emme_network
         
-    def copy(self):
-        new_gdf = super().copy()
+    def copy(self, deep=True):
+        new_gdf = super().copy(deep=deep)
         new_emme_network = EmmeNetwork(new_gdf)
         new_emme_network.__dict__.update(self.__dict__)
         return new_emme_network
+
+    def add_lam_data(self, data_type='all'):
+        from .lam_data import LamData
+        lam_data = LamData()
+        fintraffic_lam = lam_data.fintraffic_lam_to_network(self)
+        hel_lam = lam_data.hel_lam_to_network(fintraffic_lam)
+        bike_lam = lam_data.bike_lam_to_network(hel_lam)
+        self.update(EmmeNetwork(bike_lam))

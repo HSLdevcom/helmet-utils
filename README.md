@@ -8,7 +8,7 @@ Landuse functions are still a work in progress, and they cannot currently be use
 
 ## Installation and updating
 
-You can install the package directly from the GitHub repository using pip. **EMME libraries are not required**, so you do not, and probably should not use the Python delivered with EMME:
+You can install the package directly from the GitHub repository using pip. **EMME libraries are not required**, so you do not need to, and probably should not use the Python delivered with EMME:
 
 ```sh
 python -m pip install git+https://github.com/HSLdevcom/helmet-utils.git

@@ -158,7 +158,7 @@ python -m helmet_utils recalculate_zonedata --zonedata_folder path/to/zonedata_f
 - `--zonedata_folder`: Path to the original zonedata folder for a specific year.
 - `--output_folder`: Folder to save the recalculated zonedata (optional).
 - `--zones`: Path to a .gpkg file with split zone geometries (required for manual splitting).
-- `--area_changes`: Area changes in dictionary format, e.g., `"{1:[1,4,5], 2:[2,3]}"` (required for manual splitting).
+- `--area_changes`: Area changes in dictionary format, e.g., `"{1:[1,4,5], 2:[2,3]}"`, where keys are original zone SIJ2023 ids, and the values are lists representing the new zones (required for manual splitting).
 - `--scenario_folder`: Path to the exported EMME scenario/network folder with added centroids (required for automatic splitting).
 - `--split_zones`: Flag to split zones based on the locations of the added centroids (required for automatic splitting).
 

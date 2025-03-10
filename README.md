@@ -4,7 +4,7 @@ Repository for the processing and adjusting of data used by Helmet. Can be used 
 
 Can be used to add height data to an Emme/Helmet network, which requires a Maanmittauslaitos API key from: https://www.maanmittauslaitos.fi/rajapinnat/api-avaimen-ohje
 
-Landuse functions are still a work in progress, and they cannot currently be used through the command line interface. Most of the work for recalculating the .lnd file has been completed, but 
+Zone data and lam data functions are still a work in progress, and issues may emerge. Also, when exporting a scenario, make sure that all the necessary files have been exported before importing to EMME.
 
 ## Installation and updating
 
@@ -23,7 +23,7 @@ python -m pip install git+https://github.com/HSLdevcom/helmet-utils.git
 
 ## Usage as a Python Library
 
-To use `helmet_utils` as a Python library, you can import the necessary classes and functions in your Python script
+To use `helmet_utils` as a Python library, you can import the necessary classes and functions in your Python script.
 
 Adding height data to a network:
 
@@ -95,7 +95,7 @@ A user can split existing zones into new ones using a GIS program, specifying th
 
 
 ```python
-from helmet_utils.network import scenario_reader
+from helmet_utils.zonedata import zonedata_reader
 
 def main():
     zonedata = zonedata_reader.get_helmet_zonedata("2023", "redrawn_zones.gpkg")
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 Optionally, you can let the program redraw zone geometries automatically from added centroids
 
 ```python
-from helmet_utils.network import scenario_reader
+from helmet_utils.zonedata import zonedata_reader
 
 def main():
     zonedata = zonedata_reader.get_helmet_zonedata("2023")
@@ -119,6 +119,13 @@ if __name__ == "__main__":
     main()
 
 ```
+
+A common issue that may emerge is that a GeoPandas function turns the EmmeNetwork object into a GeoDataFrame object. Please notify of these issues or create a pull request fixing the issue. In the mean time, you can reassign the variable like this:
+
+```python
+fixed_network = emme_network.EmmeNetwork(network_that_has_become_geodataframe)
+```
+
 
 
 
@@ -158,7 +165,7 @@ python -m helmet_utils recalculate_zonedata --zonedata_folder path/to/zonedata_f
 - `--zonedata_folder`: Path to the original zonedata folder for a specific year.
 - `--output_folder`: Folder to save the recalculated zonedata (optional).
 - `--zones`: Path to a .gpkg file with split zone geometries (required for manual splitting).
-- `--area_changes`: Area changes in dictionary format, e.g., `"{1:[1,4,5], 2:[2,3]}"` (required for manual splitting).
+- `--area_changes`: Area changes in dictionary format, e.g., `"{1:[1,4,5], 2:[2,3]}"`, where keys are original zone SIJ2023 ids, and the values are lists representing the new zones (required for manual splitting).
 - `--scenario_folder`: Path to the exported EMME scenario/network folder with added centroids (required for automatic splitting).
 - `--split_zones`: Flag to split zones based on the locations of the added centroids (required for automatic splitting).
 

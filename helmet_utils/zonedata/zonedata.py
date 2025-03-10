@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-import rasterstats
 from typing import Optional, Dict
 
 from shapely.geometry import Point, MultiPoint
@@ -226,12 +225,6 @@ class ZoneData():
     def fill_folder(self, lnd:pd.DataFrame, edu: pd.DataFrame, pop: pd.DataFrame, wrk: pd.DataFrame, bks: pd.DataFrame, year: int, output_path:str):
         if not os.path.exists(f"{output_path}"):
             os.makedirs(f"{output_path}")
-
-        def custom_format(x):
-            if x > 10000:
-                return f'{x:.0f}'
-            else:
-                return f'{x:.4g}'
         
         # EDU
         edu = edu.astype({'compreh': 'int', 'secndry': 'int', 'tertiary': 'int'})
@@ -269,8 +262,6 @@ class ZoneData():
         f.write('# Sharebikes 2023\n# rel_capacity: total capacity at stations / zone area\n# rel_stations: number of stations / zone_area\n# operator: operator city or region\n# HE: Helsinki-Espoo\n# VA: Vantaa\n# PO: Porvoo\n# LA: Lahti\n#\n')
         lnd.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
         f.close()
-
-
 
         return
 

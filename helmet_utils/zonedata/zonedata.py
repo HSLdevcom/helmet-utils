@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+import requests
 from typing import Optional, Dict
 
 from shapely.geometry import Point, MultiPoint
@@ -22,7 +23,51 @@ class ZoneData():
         self.zones = zones
         self.landcover_file = landcover_file
 
-    def recalculate_zonedata(self, output_path: str, area_changes:Optional[Dict[int, int]] = None, split_areas=False, network_folder: str='', year=2023):
+    def get_ryhti_within_zone(self, zone_id):
+        # Get the geometry of the specified zone
+        zone = self.zones.to_crs("EPSG:4326")[self.zones['SIJ2023'] == zone_id].geometry.iloc[0]
+        
+        # Get the bounding box of the zone
+        minx, miny, maxx, maxy = zone.bounds
+        
+        # SYKE RYHTI database includes data on buildings. 
+        url = f"https://paikkatiedot.ymparisto.fi/geoserver/ryhti_building/ogc/features/v1/collections/open_building/items?f=application/json&bbox={minx},{miny},{maxx},{maxy}"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            features = data['features']
+            
+            # Convert features to GeoDataFrame
+            gdf = gpd.GeoDataFrame.from_features(features)
+            gdf.crs = "EPSG:4326"
+            gdf = gdf.to_crs("EPSG:3879")  # Same crs as self.zones
+            
+            # Only include features within the zone
+            gdf = gpd.overlay(gdf, self.zones[self.zones['SIJ2023']==zone_id], how='intersection')
+        else:
+            print(f"Failed to fetch data from OGC server. Status code: {response.status_code}")
+
+        return gdf
+    
+    def calculate_floorarea_shares(self, area_changes:dict, new_zones:gpd.GeoDataFrame):
+        floorarea_shares = {}
+        for original_zone_id in area_changes.keys():
+            buildings = self.get_ryhti_within_zone(original_zone_id)
+            total_floorarea = buildings['gross_floor_area'].sum()
+            for new_zone_id in area_changes[original_zone_id]:
+                # Get buildings within the sub zone
+                buildings_within_sub_zone = gpd.overlay(buildings, new_zones[new_zones['SIJ2023']==new_zone_id], how='intersection')
+                sub_zone_floorarea = buildings_within_sub_zone['gross_floor_area'].sum()
+
+                # Calculate the share of the sub zone's floor area compared to the total floor area
+                floorarea_share = sub_zone_floorarea / total_floorarea if total_floorarea > 0 else 0
+                floorarea_shares[new_zone_id] = (original_zone_id, floorarea_share)
+        
+        return floorarea_shares
+
+    
+    def recalculate_zonedata(self, output_path: str, area_changes:Optional[Dict[int, int]] = None, split_areas=False, network_folder: str='', year=2023, split_zones_filename:str=None):
         if split_areas and area_changes:
             print("Cannot split areas with predefined area changes.")
             return
@@ -30,7 +75,7 @@ class ZoneData():
             if not network_folder:
                 print("Network is required to split areas. Either provide a network or set split_areas to False.")
                 return
-            zones, area_changes = self.split_areas(network_folder, output_path)
+            zones, area_changes = self.split_areas(network_folder, output_path, split_zones_filename=split_zones_filename)
         else:
             zones = self.zones
             area_changes = area_changes
@@ -45,6 +90,7 @@ class ZoneData():
 
         # Calculate landuse according to area splits
         lnd, landuse_changes = self.recalculate_landuse(zones, self.landcover_file, year, area_changes)
+        landuse_changes = self.calculate_floorarea_shares(area_changes, zones)
         # Calculate the rest using landuse data
         if area_changes:
             print("Redistributing population data based on landuse patterns on modified areas.")
@@ -87,7 +133,6 @@ class ZoneData():
             landuse_changes = {i: (original, df.loc[i, 'builtar']/original_landuse.loc[original, 'builtar']) for original, new in area_changes.items() for i in new}
         except KeyError:
             raise KeyError("Area changes and zones do not match. Cut zones using a GIS editor, or automatically split areas by setting split_areas=True")
-        print(landuse_changes)
         df = self._calculate_detach_share_for_region(df, area_changes_mapped, original_landuse)
         df = df[['builtar', 'sportsar', 'detach']]
         return df, landuse_changes
@@ -150,10 +195,13 @@ class ZoneData():
             df.loc[i, 'detach'] = original_lnd.loc[area_changes_mapped[i], 'detach']
         return df
     
-    def split_areas(self, scenario_directory: str, output_directory: str):
+    def split_areas(self, scenario_directory: str, output_directory: str, split_zones_filename: str=None):
         print("Splitting zones based on added centroids.")
         if not os.path.exists(f"{output_directory}"):
             os.makedirs(f"{output_directory}")
+        if not split_zones_filename:
+            split_zones_filename = "SIJ2023_aluejako_jaettu"
+        split_zones_filename = split_zones_filename.rstrip(".gpkg")
 
         scenario = scenario_reader.get_emme_scenario(scenario_directory)
         centroids = scenario.network.centroids
@@ -175,7 +223,7 @@ class ZoneData():
         # Combine original zones with split zones
         combined_zones = pd.concat([original_zones_to_keep, split_zones], ignore_index=True)
         combined_zones.fillna(0, inplace=True)
-        combined_zones.to_file("SIJ2023_aluejako_jaettu.gpkg", driver='GPKG')
+        combined_zones.to_file(f"{output_directory}/{split_zones_filename}.gpkg", driver='GPKG')
         print("Zones split successfully.")
         
         return combined_zones, zones_to_split

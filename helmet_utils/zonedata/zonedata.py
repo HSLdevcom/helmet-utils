@@ -133,6 +133,7 @@ class ZoneData():
             landuse_changes = {i: (original, df.loc[i, 'builtar']/original_landuse.loc[original, 'builtar']) for original, new in area_changes.items() for i in new}
         except KeyError:
             raise KeyError("Area changes and zones do not match. Cut zones using a GIS editor, or automatically split areas by setting split_areas=True")
+        df['detach'] = original_landuse['detach']
         df = self._calculate_detach_share_for_region(df, area_changes_mapped, original_landuse)
         df = df[['builtar', 'sportsar', 'detach']]
         return df, landuse_changes

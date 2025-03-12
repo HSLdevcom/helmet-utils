@@ -217,6 +217,27 @@ class ScenarioReader:
             df_extra_attributes = pd.read_csv(file, names=columns, sep=r'\s+')
         return df_extra_attributes, header
     
+    def _netfield_links_to_df(self):
+        with open(self.netfield_links_file, 'r') as file:
+            # Skip lines until the end of the header
+            header = []
+            while True:
+                line = file.readline()
+                if line.startswith('t network_fields'):
+                    continue
+                elif line.startswith('end network_fields'):
+                    break
+                else:
+                    header.append(line)
+            
+            # The next line contains the column names
+            columns = file.readline().strip().split()
+            
+            # Read the rest of the file into a DataFrame
+            df_netfield_links = pd.read_csv(file, names=columns, sep=r'\s+')
+        
+        return df_netfield_links
+    
     def _extra_segments_to_df(self):
         # Extra segments has a weird structure, requires its own parser
         data = []

@@ -277,7 +277,7 @@ class ZoneData():
         
         # EDU
         edu = edu.astype({'compreh': 'int', 'secndry': 'int', 'tertiary': 'int'})
-        f = open(f'{output_path}/{year}.edu', 'a')
+        f = open(f'{output_path}/{year}.edu', 'w')
         f.write('# Schools 2023\n#\n# compreh: Students in comprehensive school (1-9)\n# secndry: Students in upper secondary education (gymnasium, vocational)\n# tertiary: Students in tertiary education (university, college, polytechnic)\n#\n')
         edu.to_csv(f, sep="\t", lineterminator='\n')
         f.close()
@@ -285,7 +285,7 @@ class ZoneData():
         # POP
         pop = pop.fillna(0)
         pop = pop.astype({'total': 'int','sh_7-17': 'float','sh_1829': 'float','sh_3049': 'float','sh_5064': 'float','sh_65-': 'float'})
-        f = open(f'{output_path}/{year}.pop', 'a')
+        f = open(f'{output_path}/{year}.pop', 'w')
         f.write('# Population 2023\n#\n# total: total number of residents in zone\n# sh_7-17: share of population aged 7-17\n# sh_1829: share of population aged 18-29\n# sh_3049: share of population aged 30-49\n# sh_5064: share of population aged 50-64\n# sh_65-: share of population aged over 65\n#\n')
         
         pop.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
@@ -294,20 +294,20 @@ class ZoneData():
         # WRK
         wrk = wrk.fillna(0)
         wrk = wrk.astype({'total': 'int', 'sh_serv': 'float', 'sh_shop': 'float', 'sh_logi': 'float', 'sh_indu': 'float'})
-        f = open(f'{output_path}/{2022}.wrk', 'a')
+        f = open(f'{output_path}/{2022}.wrk', 'w')
         f.write('# Workplaces 2022\n#\n# total: total number of workplaces in zone\n# sh_serv: service workplaces as share of total number of workplaces\n# sh_shop: retail workplaces as share of total number of workplaces\n# sh_logi: logistics workplaces as share of total number of workplaces\n# sh_indu: industry workplaces as share of total number of workplaces\n#\n')
         wrk.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
         f.close()
 
         # LND
-        f = open(f'{output_path}/{2023}.lnd', 'a')
+        f = open(f'{output_path}/{2023}.lnd', 'w')
         f.write('# Land use 2023\n#\n# builtar: area of built environment\n# sportsar: area of sports or leisure facilities, currently not used in Helmet 5.0\n# detach: detached houses as share of total number of houses\n#\n')
 
         lnd.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
         f.close()
 
         # BKS
-        f = open(f'{output_path}/{year}.bks', 'a')
+        f = open(f'{output_path}/{year}.bks', 'w')
         f.write('# Sharebikes 2023\n# rel_capacity: total capacity at stations / zone area\n# rel_stations: number of stations / zone_area\n# operator: operator city or region\n# HE: Helsinki-Espoo\n# VA: Vantaa\n# PO: Porvoo\n# LA: Lahti\n#\n')
         lnd.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
         f.close()

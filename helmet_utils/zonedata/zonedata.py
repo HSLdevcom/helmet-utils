@@ -67,7 +67,7 @@ class ZoneData():
         return floorarea_shares
 
     
-    def recalculate_zonedata(self, output_path: str, area_changes:Optional[Dict[int, int]] = None, split_areas=False, network_folder: str='', year=2023, split_zones_filename:str=None):
+    def recalculate_zonedata(self, output_path: str, area_changes:Optional[Dict[int, int]] = None, split_areas=False, network_folder: str='', year=2023, split_zones_filename:str=None, split_data_by_buildings=False):
         if split_areas and area_changes:
             print("Cannot split areas with predefined area changes.")
             return
@@ -76,6 +76,10 @@ class ZoneData():
                 print("Network is required to split areas. Either provide a network or set split_areas to False.")
                 return
             zones, area_changes = self.split_areas(network_folder, output_path, split_zones_filename=split_zones_filename)
+        elif split_data_by_buildings:
+            zones = self.zones
+            default_zones = Path(__file__).resolve().parent.parent / 'data' / 'SIJ2023_aluejako.gpkg'
+            self.zones = gpd.read_file(default_zones)
         else:
             zones = self.zones
             area_changes = area_changes

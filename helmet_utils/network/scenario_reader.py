@@ -426,7 +426,8 @@ class ScenarioReader:
             df_extra_segments = self._extra_segments_to_df().drop(columns=['inode', 'jnode'])
             df_extra_segments.set_index(['Line', 'Segment_num'], inplace=True)
             combined_gdf = combined_gdf.merge(df_extra_segments, left_index=True, right_index=True, how='left')
-            combined_gdf = combined_gdf.drop(columns=['loop_idx_y'])
+            if 'loop_idx_y' in combined_gdf.columns:
+                combined_gdf = combined_gdf.drop(columns=['loop_idx_y'])
 
         
         if self.netfield_segments_file:

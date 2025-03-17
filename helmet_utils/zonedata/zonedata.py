@@ -239,7 +239,8 @@ class ZoneData():
 
     @staticmethod
     def voronoi(zones, centroids, zones_to_split):
-        new_zones = []
+        split_zones = pd.DataFrame()
+        i = 0
         for zone_id, centroid_nodes in zones_to_split.items():
             zone = zones[zones['SIJ2023'] == zone_id].iloc[0]
             matching_centroids = centroids[centroids['Node'].isin(centroid_nodes)]
@@ -247,29 +248,24 @@ class ZoneData():
             # Extract coordinates
             points = MultiPoint([Point(centroid.geometry.centroid) for centroid in matching_centroids.itertuples()])
             # Convert bounds to Polygon
-            # bounds_polygon = Polygon.from_bounds(*zone.geometry.bounds)
             vor = voronoi_polygons(points, extend_to=zone.geometry)
 
             # Create new zones based on Voronoi regions
             for region in vor.geoms:
                 if region.is_valid and region.intersects(zone.geometry):
                     intersection = region.intersection(zone.geometry)
-                    new_zone = gpd.GeoDataFrame(geometry=[intersection], crs=zones.crs)
-                    new_zones.append(new_zone)
+                    # Pick the centroid that is within this region
+                    centroid = matching_centroids[matching_centroids.geometry.centroid.within(region)].iloc[0]
+                    original_zone = zones[zones['SIJ2023'] == zone_id].iloc[0]
+                    split_zones.at[i, 'geometry'] = intersection
+                    split_zones.at[i, 'SIJ2019'] = original_zone['SIJ2019']
+                    split_zones.at[i, 'KELA'] = original_zone['KELA']
+                    split_zones.at[i, 'SIJ_ID'] = centroid['Node']
+                    split_zones.at[i, 'SIJ2023'] = centroid['Node']  # Ensure the 'Node' attribute matches
+                    i += 1
+        split_zones_gdf = gpd.GeoDataFrame(split_zones, geometry='geometry', crs=zones.crs)
 
-        # Combine new zones into a single GeoDataFrame
-        split_zones = gpd.GeoDataFrame(pd.concat(new_zones, ignore_index=True), crs=zones.crs)
-
-        # Assign attributes to new zones
-        for i, zone in split_zones.iterrows():
-            centroid = matching_centroids.iloc[i]
-            original_zone = zones[zones['SIJ2023'] == zone_id].iloc[0]
-            split_zones.at[i, 'SIJ2019'] = original_zone['SIJ2019']
-            split_zones.at[i, 'KELA'] = original_zone['KELA']
-            split_zones.at[i, 'SIJ_ID'] = centroid['Node']
-            split_zones.at[i, 'SIJ2023'] = centroid['Node']
-
-        return split_zones
+        return split_zones_gdf
 
     def fill_folder(self, lnd:pd.DataFrame, edu: pd.DataFrame, pop: pd.DataFrame, wrk: pd.DataFrame, bks: pd.DataFrame, year: int, output_path:str):
         if not os.path.exists(f"{output_path}"):
@@ -309,7 +305,7 @@ class ZoneData():
         # BKS
         f = open(f'{output_path}/{year}.bks', 'w')
         f.write('# Sharebikes 2023\n# rel_capacity: total capacity at stations / zone area\n# rel_stations: number of stations / zone_area\n# operator: operator city or region\n# HE: Helsinki-Espoo\n# VA: Vantaa\n# PO: Porvoo\n# LA: Lahti\n#\n')
-        lnd.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
+        bks.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
         f.close()
 
         return

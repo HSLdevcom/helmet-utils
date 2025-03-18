@@ -3,6 +3,7 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import requests
+import webbrowser
 from typing import Optional, Dict
 
 from shapely.geometry import Point, MultiPoint
@@ -14,13 +15,15 @@ from ..network import scenario_reader
 AREA_MULTIPLIER = 400*0.000001
 
 class ZoneData():
-    def __init__(self, landuse, population, workplace, education, bikes, zones, landcover_file):
+    def __init__(self, landuse, population, workplace, education, bikes, parking, car, zones, landcover_file):
         self.landuse = landuse
         self.population = population
         self.workplace = workplace
         self.education = education
         self.bikes = bikes
         self.zones = zones
+        self.parking = parking
+        self.car = car
         self.landcover_file = landcover_file
 
     def get_ryhti_within_zone(self, zone_id):
@@ -44,7 +47,8 @@ class ZoneData():
             gdf = gdf.to_crs("EPSG:3879")  # Same crs as self.zones
             
             # Only include features within the zone
-            gdf = gpd.overlay(gdf, self.zones[self.zones['SIJ2023']==zone_id], how='intersection')
+            # gdf = gpd.overlay(gdf, self.zones[self.zones['SIJ2023']==zone_id], how='intersection')
+            gdf = gdf.clip(self.zones[self.zones['SIJ2023']==zone_id])
         else:
             print(f"Failed to fetch data from OGC server. Status code: {response.status_code}")
 
@@ -57,7 +61,7 @@ class ZoneData():
             total_floorarea = buildings['gross_floor_area'].sum()
             for new_zone_id in area_changes[original_zone_id]:
                 # Get buildings within the sub zone
-                buildings_within_sub_zone = gpd.overlay(buildings, new_zones[new_zones['SIJ2023']==new_zone_id], how='intersection')
+                buildings_within_sub_zone = buildings.clip(new_zones[new_zones['SIJ2023']==new_zone_id])
                 sub_zone_floorarea = buildings_within_sub_zone['gross_floor_area'].sum()
 
                 # Calculate the share of the sub zone's floor area compared to the total floor area
@@ -100,12 +104,16 @@ class ZoneData():
             wrk = self.recalculate_workplace(landuse_changes)
             edu = self.recalculate_education(landuse_changes)
             bks = self.recalculate_bikes(landuse_changes)
+            car = self.recalculate_cars(landuse_changes)
+            prk = self.recalculate_parking(landuse_changes)
         else:
             pop = self.population
             wrk = self.workplace
             edu = self.education
             bks = self.bikes
-        self.fill_folder(lnd, edu, pop, wrk, bks, year, output_path)
+            car = self.car
+            prk = self.parking
+        self.fill_folder(lnd, edu, pop, wrk, bks, prk, car, year, output_path)
         print(f"Done. Output in {output_path}. Please double check the recalculated values and copy the rest of the input files.")
 
     def _read_landcover(self, zones:gpd.GeoDataFrame, landcover_filepath: str, year:int) -> gpd.GeoDataFrame:
@@ -136,6 +144,7 @@ class ZoneData():
         df['detach'] = original_landuse['detach']
         df = self._calculate_detach_share_for_region(df, area_changes_mapped, original_landuse)
         df = df[['builtar', 'sportsar', 'detach']]
+        df = df.sort_index()
         return df, landuse_changes
 
 
@@ -149,6 +158,7 @@ class ZoneData():
             pop.loc[id, 'sh_3049'] = original_population.loc[landuse_share[0], 'sh_3049']
             pop.loc[id, 'sh_5064'] = original_population.loc[landuse_share[0], 'sh_5064']
             pop.loc[id, 'sh_65-'] = original_population.loc[landuse_share[0], 'sh_65-']
+        pop = pop.sort_index()
         return pop
     
     def recalculate_workplace(self, landuse_changes):
@@ -160,6 +170,7 @@ class ZoneData():
             wrk.loc[id, 'sh_shop'] = original_workplace.loc[landuse_share[0], 'sh_shop']
             wrk.loc[id, 'sh_logi'] = original_workplace.loc[landuse_share[0], 'sh_logi']
             wrk.loc[id, 'sh_indu'] = original_workplace.loc[landuse_share[0], 'sh_indu']
+        wrk = wrk.sort_index()
         return wrk
     
     def recalculate_education(self, landuse_changes):
@@ -170,6 +181,7 @@ class ZoneData():
             edu.loc[id, 'compreh'] = round(original_education.loc[landuse_share[0], 'compreh'] * landuse_share[1])
             edu.loc[id, 'secndry'] = round(original_education.loc[landuse_share[0], 'secndry'] * landuse_share[1])
             edu.loc[id, 'tertiary'] = round(original_education.loc[landuse_share[0], 'tertiary'] * landuse_share[1])
+        edu = edu.sort_index()
         return edu
     
     def recalculate_bikes(self, landuse_changes):
@@ -188,9 +200,27 @@ class ZoneData():
                 bks.loc[id, 'rel_capacity'] = 0.0
                 bks.loc[id, 'rel_stations'] = 0.0
                 bks.loc[id, 'operator'] = original_bikes.loc[landuse_share[0], 'operator']
-
+        bks = bks.sort_index()
         return bks
-
+    
+    def recalculate_parking(self, landuse_changes):
+        original_parking= self.parking
+        prk = original_parking.copy()
+        for id, landuse_share in landuse_changes.items():
+            prk.loc[id, 'parcosw'] = original_parking.loc[landuse_share[0], 'parcosw']
+            prk.loc[id, 'parcose'] = original_parking.loc[landuse_share[0], 'parcose']
+        prk = prk.sort_index()
+        return prk
+    
+    def recalculate_cars(self, landuse_changes):
+        original_car = self.car
+        car = original_car.copy()
+        for id, landuse_share in landuse_changes.items():
+            car.loc[id, 'caruse'] = original_car.loc[landuse_share[0], 'caruse']
+            car.loc[id, 'cardens'] = original_car.loc[landuse_share[0], 'cardens']
+        car = car.sort_index()
+        return car
+    
     def _calculate_detach_share_for_region(self, df, area_changes_mapped, original_lnd):
         for i in area_changes_mapped.keys():
             df.loc[i, 'detach'] = original_lnd.loc[area_changes_mapped[i], 'detach']
@@ -267,7 +297,7 @@ class ZoneData():
 
         return split_zones_gdf
 
-    def fill_folder(self, lnd:pd.DataFrame, edu: pd.DataFrame, pop: pd.DataFrame, wrk: pd.DataFrame, bks: pd.DataFrame, year: int, output_path:str):
+    def fill_folder(self, lnd:pd.DataFrame, edu: pd.DataFrame, pop: pd.DataFrame, wrk: pd.DataFrame, bks: pd.DataFrame, prk:pd.DataFrame, car:pd.DataFrame, year: int, output_path:str):
         if not os.path.exists(f"{output_path}"):
             os.makedirs(f"{output_path}")
         
@@ -308,10 +338,22 @@ class ZoneData():
         bks.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
         f.close()
 
+        # CAR
+        f = open(f'{output_path}/{year}.car', 'w')
+        f.write('# cars of population 31.12.201\n#\n# caruse: share of population that is car main user\n# cardens: cars per inhabitants\n#\n')
+        car.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
+        f.close()
+
+        # PRK, parking cost in split zones assumed to be the same as before splitting
+        f = open(f'{output_path}/{year}.prk', 'w')
+        f.write('# parking costs\n#\n# parcosw: parking cost at workplace\n# parcose: parking cost during errand\n#\n')
+        prk.to_csv(f, float_format='%.4g', sep="\t", lineterminator='\n')
+        f.close()
+
         return
 
     def calculate_landuse_metrics(self, gdf: gpd.GeoDataFrame, year: int) -> gpd.GeoDataFrame:
-        gdf['area'] = gdf['geometry'].area
+        gdf['area'] = gdf['geometry'].area * 0.000001
         gdf = gdf.fillna(0)
         gdf['id'] = gdf.index
         if year == 2012:  
@@ -325,11 +367,13 @@ class ZoneData():
             gdf['kosteikko'] = (gdf[41] + gdf[42] + gdf[43] + gdf[44] + gdf[45] + gdf[46]) * AREA_MULTIPLIER
             gdf['sportsar'] = gdf[14] * AREA_MULTIPLIER
 
-        gdf['land_area'] = gdf['area']-gdf['vesi']
-        gdf['builtar'] = gdf.apply(lambda row: row['builtar'] if row['builtar'] <= row['land_area'] else row['land_area'], axis=1)
+        gdf['landar'] = gdf.apply(lambda row: row['area']-row['vesi'] if row['vesi']>0 else row['builtar'], axis=1)
+        gdf['builtar'] = gdf.apply(lambda row: row['builtar'] if row['builtar'] <= row['landar'] else row['landar'], axis=1)
+        gdf['builtar'] = gdf['builtar'].apply(lambda x: 0.01 if x == 0 else x)  # Avoid division by zero in model system. Builtar might fall to 0 after splitting zones.
         gdf['SIJ2023'] = gdf['SIJ2023'].astype(int)
         gdf = gdf.set_index('SIJ2023').sort_index()
-        gdf = gdf[['builtar','sportsar']]
+        # Also include landar in a later version
+        gdf = gdf[['builtar', 'sportsar']]
     
         return gdf
 

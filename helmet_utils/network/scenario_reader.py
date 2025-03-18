@@ -87,6 +87,9 @@ class ScenarioReader:
         reading_nodes = False
         reading_links = False
 
+        # Regular expression to fix centroids with missing space after 'a*'
+        node_line_regex = re.compile(r'^(a\*)\s*(\d+)')
+
         # Process each line in the file
         for line in lines:
             if "Project:" in line:
@@ -105,6 +108,7 @@ class ScenarioReader:
 
             # If we're reading a table, add the line to the appropriate list
             if reading_nodes:
+                line = node_line_regex.sub(r'\1 \2', line)
                 nodes_lines.append(line)
             elif reading_links:
                 links_lines.append(line)
